@@ -12,9 +12,14 @@ import SwiftData
 struct OmoMoneyApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
+            HomeGroup.self,
+            Entry.self,
             Item.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let modelConfiguration = ModelConfiguration(
+            schema: schema,
+            url: URL.documentsDirectory.appending(path: "omo-money.store")
+        )
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])

@@ -7,60 +7,1685 @@
 
 import SwiftUI
 import SwiftData
+import Combine
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
+    @Query(sort: \Entry.date, order: .reverse) private var entries: [Entry]
+    @Query private var allItems: [Item]
+    
+    @State private var selectedHomeGroupId: String? = nil
+    @State private var showingAddEntry = false
+    @State private var selectedEntry: Entry? = nil
+    @State private var entryTitle = ""
+    @State private var entryDate = Date()
+    @State private var entryCategory = EntryCategory.comida.rawValue
+    @State private var entryType = false // false = outcome, true = income
+    @State private var entryHomeGroupId = ""
+    @State private var entryMoney = ""
+    @State private var editingEntry: Entry? = nil
+    @State private var showingCategoryManagement = false
+    @State private var showingHomeGroupManagement = false
+    
+    // Filter entries by selected home group
+    var filteredEntries: [Entry] {
+        guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
+        return entries.filter { $0.homeGroupId == selectedHomeGroupId }
+    }
+    
+    // Group entries by date (without time) with stable section identifiers
+    var entriesByDate: [(date: Date, entries: [Entry], sectionId: String)] {
+        let grouped = Dictionary(grouping: filteredEntries) { entry in
+            Calendar.current.startOfDay(for: entry.date)
+        }
+        return grouped.map { (date: $0.key, entries: $0.value, sectionId: DateFormatter.sectionFormatter.string(from: $0.key)) }
+            .sorted { $0.date > $1.date }
+    }
+    
+    // Get current home group
+    var currentHomeGroup: HomeGroup? {
+        guard let selectedHomeGroupId = selectedHomeGroupId else { return nil }
+        return homeGroups.first { $0.id == selectedHomeGroupId }
+    }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        NavigationView {
+            VStack {
+                // Home Group Selector
+                if !homeGroups.isEmpty {
+                    HStack {
+                        Text("Grupo:")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Menu {
+                            ForEach(homeGroups, id: \.id) { homeGroup in
+                                Button(action: {
+                                    selectedHomeGroupId = homeGroup.id
+                                }) {
+                                    HStack {
+                                        Text(homeGroup.name)
+                                        if selectedHomeGroupId == homeGroup.id {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(currentHomeGroup?.name ?? "Seleccionar Grupo")
+                                    .foregroundColor(.primary)
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            prepareForNewEntry()
+                        }) {
+                            Image(systemName: "plus")
+                                .foregroundColor(.red)
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.top)
                 }
-                .onDelete(perform: deleteItems)
+                
+                // Total Spent Widget
+                if let currentHomeGroup = currentHomeGroup, !filteredEntries.isEmpty {
+                    let totalSpent = filteredEntries.reduce(0.0) { total, entry in
+                        let items = allItems.filter { $0.entryId == entry.id }
+                        let entryTotal = items.reduce(0.0) { $0 + $1.money }
+                        return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
+                    }
+                    let currencySymbol = Currency(rawValue: currentHomeGroup.currency)?.symbol ?? "$"
+                    
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Total Gastado")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(currencySymbol)\(String(format: "%.2f", totalSpent))")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.red)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Entries")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(filteredEntries.count)")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.primary)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+                
+                if homeGroups.isEmpty {
+                    // Show welcome screen for first time
+                    VStack(spacing: 20) {
+                        Image(systemName: "house.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.red)
+                        
+                        Text("OMO Money")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        Text("Crea tu primer grupo de gastos para comenzar")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                        
+                        Button(action: {
+                            showingHomeGroupManagement = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Crear Primer Grupo")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.red)
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding()
+                } else if selectedHomeGroupId == nil {
+                    // Show message to select a home group
+                    VStack(spacing: 20) {
+                        Image(systemName: "arrow.up.circle")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("Selecciona un Grupo")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        Text("Elige un grupo de la lista superior para ver sus entries")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                    }
+                    .padding()
+                } else if filteredEntries.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "dollarsign.circle.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.green)
+                        
+                        Text("OMO Money")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        Text("Comienza a registrar tus gastos e ingresos en este grupo")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                        
+                        Button(action: {
+                            prepareForNewEntry()
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Agregar Primer Entry")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.red)
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding()
+                } else {
+                    List {
+                        ForEach(entriesByDate, id: \.sectionId) { (date, entriesForDate, sectionId) in
+                            Section(header: Text("\(date.formatted(date: .abbreviated, time: .omitted)) (\(entriesForDate.count))")) {
+                                ForEach(entriesForDate, id: \.id) { entry in
+                                    ZStack {
+                                        // Invisible background to capture all taps
+                                        Rectangle()
+                                            .fill(Color.clear)
+                                            .contentShape(Rectangle())
+                                        
+                                        EntryRowView(entry: entry, onEdit: {
+                                            prepareForEditEntry(entry)
+                                        })
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 12)
+                                    }
+                                    .onTapGesture {
+                                        selectedEntry = entry
+                                    }
+                                    .onLongPressGesture {
+                                        prepareForEditEntry(entry)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .listRowInsets(EdgeInsets())
+                                    .listRowBackground(Color(.systemGray6))
+                                    .transition(.asymmetric(
+                                        insertion: .move(edge: .leading).combined(with: .opacity),
+                                        removal: .move(edge: .trailing).combined(with: .opacity)
+                                    ))
+                                }
+                                .onDelete { offsets in
+                                    let entriesToDelete = offsets.map { entriesForDate[$0] }
+                                    deleteEntries(entriesToDelete)
+                                }
+                            }
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.3), value: entriesByDate.map { $0.sectionId })
+                }
             }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
+            .navigationTitle("OMO Money")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
-#if os(iOS)
+                // Category Management button
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+                    Button(action: {
+                        showingCategoryManagement = true
+                    }) {
+                        Image(systemName: "chart.pie")
+                            .foregroundColor(.gray)
+                    }
                 }
-#endif
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingHomeGroupManagement = true
+                    }) {
+                        Image(systemName: "house")
+                            .foregroundColor(.gray)
                     }
                 }
             }
-        } detail: {
-            Text("Select an item")
+            .sheet(isPresented: $showingAddEntry) {
+                AddEntrySheet(
+                    isPresented: $showingAddEntry,
+                    entryTitle: $entryTitle,
+                    entryDate: $entryDate,
+                    entryCategory: $entryCategory,
+                    entryType: $entryType,
+                    entryHomeGroupId: $entryHomeGroupId,
+                    entryMoney: $entryMoney,
+                    isEditing: editingEntry != nil,
+                    onSave: {
+                        if let editingEntry = editingEntry {
+                            updateEntry(editingEntry)
+                        } else {
+                            addEntry()
+                        }
+                    }
+                )
+            }
+            .sheet(isPresented: $showingCategoryManagement) {
+                CategoryManagementSheet(
+                    isPresented: $showingCategoryManagement,
+                    entries: filteredEntries,
+                    modelContext: modelContext
+                )
+            }
+            .sheet(isPresented: $showingHomeGroupManagement) {
+                HomeGroupManagementSheet(
+                    isPresented: $showingHomeGroupManagement,
+                    homeGroups: homeGroups,
+                    modelContext: modelContext,
+                    selectedHomeGroupId: $selectedHomeGroupId
+                )
+            }
+            .sheet(item: $selectedEntry) { entry in
+                EntryDetailView(entry: entry)
+            }
         }
     }
-
-    private func addItem() {
+    
+    private func prepareForNewEntry() {
+        entryTitle = ""
+        entryDate = Calendar.current.startOfDay(for: Date())
+        entryCategory = EntryCategory.comida.rawValue
+        entryType = false
+        entryHomeGroupId = selectedHomeGroupId ?? ""
+        entryMoney = ""
+        editingEntry = nil
+        showingAddEntry = true
+    }
+    
+    private func prepareForEditEntry(_ entry: Entry) {
+        entryTitle = entry.title
+        entryDate = entry.date
+        entryCategory = entry.category
+        entryType = entry.type
+        entryHomeGroupId = entry.homeGroupId
+        // For editing, we don't pre-fill the money field
+        entryMoney = ""
+        editingEntry = entry
+        showingAddEntry = true
+    }
+    
+    private func addEntry() {
         withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+            let newEntry = Entry(
+                title: entryTitle,
+                date: entryDate,
+                category: entryCategory,
+                type: entryType,
+                homeGroupId: entryHomeGroupId
+            )
+            modelContext.insert(newEntry)
+            
+            // Create initial item if money is provided
+            if let money = Double(entryMoney), !entryMoney.isEmpty {
+                let initialItem = Item(
+                    money: money,
+                    amount: 1,
+                    itemDescription: entryTitle,
+                    entryId: newEntry.id
+                )
+                modelContext.insert(initialItem)
+            }
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error saving entry: \(error)")
+            }
         }
     }
-
-    private func deleteItems(offsets: IndexSet) {
+    
+    private func updateEntry(_ entry: Entry) {
         withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            entry.title = entryTitle
+            entry.date = entryDate
+            entry.category = entryCategory
+            entry.type = entryType
+            entry.homeGroupId = entryHomeGroupId
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error updating entry: \(error)")
+            }
+        }
+    }
+    
+    private func deleteEntries(_ entries: [Entry]) {
+        withAnimation {
+            for entry in entries {
+                // Borrar todos los items asociados a este entry
+                let itemsToDelete = allItems.filter { $0.entryId == entry.id }
+                for item in itemsToDelete {
+                    modelContext.delete(item)
+                }
+                modelContext.delete(entry)
+            }
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error deleting entries: \(error)")
             }
         }
     }
 }
 
+struct EntryRowView: View {
+    let entry: Entry
+    @Query private var allItems: [Item]
+    @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
+    var onEdit: (() -> Void)?
+    
+    var items: [Item] {
+        allItems.filter { $0.entryId == entry.id }
+    }
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.title)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Text(entry.category.capitalized)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(categoryColor(entry.category))
+                    .foregroundColor(.white)
+                    .cornerRadius(4)
+            }
+            
+            Spacer()
+            
+            // Show total amount if there are items
+            if !items.isEmpty {
+                let total = items.reduce(0) { $0 + $1.money }
+                let color = entry.type ? Color.green : Color.red
+                // Get currency from home group
+                let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
+                let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
+                Text("\(currencySymbol)\(String(format: "%.2f", total))")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+            } else {
+                Text("Sin items")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private func categoryColor(_ category: String) -> Color {
+        switch category {
+        case "comida": return .red
+        case "hogar": return .blue
+        case "salud": return .green
+        case "ocio": return .purple
+        case "transporte": return .orange
+        default: return .gray
+        }
+    }
+}
+
+struct AddEntrySheet: View {
+    @Environment(\.modelContext) private var modelContext
+    @Binding var isPresented: Bool
+    @Binding var entryTitle: String
+    @Binding var entryDate: Date
+    @Binding var entryCategory: String
+    @Binding var entryType: Bool
+    @Binding var entryHomeGroupId: String
+    @Binding var entryMoney: String
+    var isEditing: Bool = false
+    var onSave: () -> Void
+    
+    @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
+    
+    @State private var showDatePicker: Bool = false
+    @FocusState private var focusedField: Field?
+    
+    // Computed property to check if the form is valid
+    private var isFormValid: Bool {
+        !entryTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
+    enum Field {
+        case title
+        case money
+    }
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Entry Title Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Título del Entry")
+                            .font(.headline)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        TextField("Ej: Compra del supermercado", text: $entryTitle)
+                            .padding(8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                            )
+                            .focused($focusedField, equals: .title)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Money Section (only show for new entries, not editing)
+                    if !isEditing {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Monto (opcional)")
+                                .font(.headline)
+                                .foregroundColor(Color(.systemGray))
+                            
+                            TextField("0.00", text: $entryMoney)
+                                .padding(8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(.systemGray4), lineWidth: 1)
+                                )
+                                .keyboardType(.decimalPad)
+                                .focused($focusedField, equals: .money)
+                                .onChange(of: entryMoney) { _, newValue in
+                                    // Convertir coma a punto para decimales
+                                    let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
+                                    if convertedValue != newValue {
+                                        entryMoney = convertedValue
+                                    }
+                                }
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Date Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Fecha")
+                            .font(.headline)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        Button(action: {
+                            showDatePicker.toggle()
+                        }) {
+                            HStack {
+                                Image(systemName: "calendar")
+                                    .foregroundColor(.gray)
+                                Text(entryDate.formatted(date: .abbreviated, time: .omitted))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                                    .font(.caption)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        if showDatePicker {
+                            DatePicker("", selection: $entryDate, displayedComponents: .date)
+                                .datePickerStyle(.graphical)
+                                .labelsHidden()
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Category Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Categoría")
+                            .font(.headline)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                            ForEach(EntryCategory.allCases, id: \.self) { category in
+                                Button(action: {
+                                    entryCategory = category.rawValue
+                                }) {
+                                    HStack {
+                                        Circle()
+                                            .fill(categoryColor(category.rawValue))
+                                            .frame(width: 12, height: 12)
+                                        Text(category.displayName)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                        if entryCategory == category.rawValue {
+                                            Image(systemName: "checkmark")
+                                                .foregroundColor(.green)
+                                        }
+                                    }
+                                    .padding()
+                                    .background(entryCategory == category.rawValue ? Color.green.opacity(0.1) : Color(.systemGray6))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(entryCategory == category.rawValue ? Color.green : Color(.systemGray4), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Home Group Section (only show if editing or multiple home groups exist)
+                    if isEditing || homeGroups.count > 1 {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Grupo")
+                                .font(.headline)
+                                .foregroundColor(Color(.systemGray))
+                            
+                            Menu {
+                                ForEach(homeGroups, id: \.id) { homeGroup in
+                                    Button(action: {
+                                        entryHomeGroupId = homeGroup.id
+                                    }) {
+                                        HStack {
+                                            Text(homeGroup.name)
+                                            if entryHomeGroupId == homeGroup.id {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    let selectedGroup = homeGroups.first { $0.id == entryHomeGroupId }
+                                    Text(selectedGroup?.name ?? "Seleccionar Grupo")
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(.systemGray4), lineWidth: 1)
+                                )
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Type Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Tipo")
+                            .font(.headline)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                entryType = false
+                            }) {
+                                HStack {
+                                    Image(systemName: "arrow.down.circle")
+                                        .foregroundColor(.red)
+                                    Text("Gasto")
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    if !entryType {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.green)
+                                    }
+                                }
+                                .padding()
+                                .background(!entryType ? Color.red.opacity(0.1) : Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(!entryType ? Color.red : Color(.systemGray4), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            Button(action: {
+                                entryType = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "arrow.up.circle")
+                                        .foregroundColor(.green)
+                                    Text("Ingreso")
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    if entryType {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.green)
+                                    }
+                                }
+                                .padding()
+                                .background(entryType ? Color.green.opacity(0.1) : Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(entryType ? Color.green : Color(.systemGray4), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.vertical)
+            }
+            .navigationTitle(isEditing ? "Editar Entry" : "Nuevo Entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancelar") {
+                        isPresented = false
+                    }
+                    .foregroundColor(.gray)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Guardar") {
+                        onSave()
+                        isPresented = false
+                    }
+                    .foregroundColor(.red)
+                    .disabled(!isFormValid)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+    
+    private func categoryColor(_ category: String) -> Color {
+        switch category {
+        case "comida": return .red
+        case "hogar": return .blue
+        case "salud": return .green
+        case "ocio": return .purple
+        case "transporte": return .orange
+        default: return .gray
+        }
+    }
+}
+
+struct EntryDetailView: View {
+    let entry: Entry
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    
+    @Query private var allItems: [Item]
+    @State private var showingAddItem = false
+    @State private var showingEditItem = false
+    @State private var showingEditEntry = false
+    @State private var itemMoney = ""
+    @State private var itemAmount = ""
+    @State private var itemDescription = ""
+    @State private var editingItem: Item? = nil
+    @State private var entryTitle = ""
+    @State private var entryDate = Date()
+    @State private var entryCategory = ""
+    @State private var entryType = false
+    @State private var entryHomeGroupId = ""
+    @State private var entryMoney = ""
+    @State private var editingEntry: Entry? = nil
+    
+    var items: [Item] {
+        allItems.filter { $0.entryId == entry.id }
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                if items.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "cart.badge.plus")
+                            .font(.system(size: 60))
+                            .foregroundColor(.red)
+                        
+                        Text("No hay items")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        Text("Agrega items a este entry para comenzar")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                        
+                        Button(action: {
+                            prepareForNewItem()
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Agregar Primer Item")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.red)
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding()
+                } else {
+                    List {
+                        ForEach(items, id: \.id) { item in
+                            ItemRowView(item: item, entry: entry, onEdit: {
+                                prepareForEditItem(item)
+                            })
+                        }
+                        .onDelete { offsets in
+                            let itemsToDelete = offsets.map { items[$0] }
+                            deleteItems(itemsToDelete)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Button(action: {
+                        prepareForEditEntry(entry)
+                    }) {
+                        HStack(spacing: 4) {
+                            Text(entry.title)
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Image(systemName: "pencil")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cerrar") {
+                        dismiss()
+                    }
+                    .foregroundColor(.gray)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        prepareForNewItem()
+                    }) {
+                        Image(systemName: "plus")
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddItem) {
+                AddItemSheet(
+                    isPresented: $showingAddItem,
+                    itemMoney: $itemMoney,
+                    itemAmount: $itemAmount,
+                    itemDescription: $itemDescription,
+                    isEditing: editingItem != nil,
+                    onSave: {
+                        if let editingItem = editingItem {
+                            updateItem(editingItem)
+                        } else {
+                            addItem()
+                        }
+                    }
+                )
+            }
+            .sheet(isPresented: $showingEditEntry) {
+                AddEntrySheet(
+                    isPresented: $showingEditEntry,
+                    entryTitle: $entryTitle,
+                    entryDate: $entryDate,
+                    entryCategory: $entryCategory,
+                    entryType: $entryType,
+                    entryHomeGroupId: $entryHomeGroupId,
+                    entryMoney: $entryMoney,
+                    isEditing: true,
+                    onSave: {
+                        if let editingEntry = editingEntry {
+                            updateEntry(editingEntry)
+                        }
+                    }
+                )
+            }
+        }
+    }
+    
+    private func prepareForNewItem() {
+        itemMoney = ""
+        itemAmount = ""
+        itemDescription = ""
+        editingItem = nil
+        showingAddItem = true
+    }
+    
+    private func prepareForEditItem(_ item: Item) {
+        itemMoney = String(format: "%.2f", item.money)
+        itemAmount = item.amount?.description ?? ""
+        itemDescription = item.itemDescription
+        editingItem = item
+        showingAddItem = true
+    }
+    
+    private func prepareForEditEntry(_ entry: Entry) {
+        entryTitle = entry.title
+        entryDate = entry.date
+        entryCategory = entry.category
+        entryType = entry.type
+        entryHomeGroupId = entry.homeGroupId
+        editingEntry = entry
+        showingEditEntry = true
+    }
+    
+    private func addItem() {
+        guard let money = Double(itemMoney), !itemDescription.isEmpty else { return }
+        
+        withAnimation {
+            let newItem = Item(
+                money: money,
+                amount: Int(itemAmount),
+                itemDescription: itemDescription,
+                entryId: entry.id
+            )
+            modelContext.insert(newItem)
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error saving item: \(error)")
+            }
+        }
+        
+        // Reset form
+        itemMoney = ""
+        itemAmount = ""
+        itemDescription = ""
+    }
+    
+    private func updateItem(_ item: Item) {
+        guard let money = Double(itemMoney), !itemDescription.isEmpty else { return }
+        
+        withAnimation {
+            item.money = money
+            item.amount = Int(itemAmount)
+            item.itemDescription = itemDescription
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error updating item: \(error)")
+            }
+        }
+        
+        // Reset form
+        itemMoney = ""
+        itemAmount = ""
+        itemDescription = ""
+        editingItem = nil
+    }
+    
+    private func updateEntry(_ entry: Entry) {
+        withAnimation {
+            entry.title = entryTitle
+            entry.date = entryDate
+            entry.category = entryCategory
+            entry.type = entryType
+            entry.homeGroupId = entryHomeGroupId
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error updating entry: \(error)")
+            }
+        }
+        
+        // Reset form
+        entryTitle = ""
+        entryDate = Date()
+        entryCategory = ""
+        entryType = false
+        entryHomeGroupId = ""
+        editingEntry = nil
+    }
+    
+    private func deleteItems(_ items: [Item]) {
+        withAnimation {
+            for item in items {
+                modelContext.delete(item)
+            }
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error deleting items: \(error)")
+            }
+        }
+    }
+}
+
+struct ItemRowView: View {
+    let item: Item
+    let entry: Entry // Add entry parameter to know the type
+    var onEdit: (() -> Void)?
+    
+    @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.itemDescription)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                if let amount = item.amount {
+                    Text("Cantidad: \(amount)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            // Color the amount based on entry type (red for expenses, green for income)
+            let amountColor = entry.type ? Color.green : Color.red
+            // Get currency from home group
+            let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
+            let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
+            Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
+                .font(.headline)
+                .foregroundColor(amountColor)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onEdit?()
+        }
+    }
+}
+
+struct AddItemSheet: View {
+    @Binding var isPresented: Bool
+    @Binding var itemMoney: String
+    @Binding var itemAmount: String
+    @Binding var itemDescription: String
+    var isEditing: Bool = false
+    var onSave: () -> Void
+    
+    @FocusState private var focusedField: Field?
+    
+    private var isFormValid: Bool {
+        let moneyValid = !itemMoney.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let descriptionValid = !itemDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let moneyNumberValid = Double(itemMoney.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
+        
+        return moneyValid && descriptionValid && moneyNumberValid
+    }
+    
+    enum Field {
+        case money
+        case amount
+        case description
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Money Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Precio")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    TextField("0.00", text: $itemMoney)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                        .keyboardType(.decimalPad)
+                        .focused($focusedField, equals: .money)
+                        .onChange(of: itemMoney) { _, newValue in
+                            // Convertir coma a punto para decimales
+                            let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
+                            if convertedValue != newValue {
+                                itemMoney = convertedValue
+                            }
+                        }
+                }
+                .padding(.horizontal)
+                
+                // Amount Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Cantidad (opcional)")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    TextField("1", text: $itemAmount)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                        .keyboardType(.numberPad)
+                        .focused($focusedField, equals: .amount)
+                }
+                .padding(.horizontal)
+                
+                // Description Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Descripción")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    TextField("Ej: Leche", text: $itemDescription)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                        .focused($focusedField, equals: .description)
+                        .onChange(of: itemDescription) { _, newValue in
+                        }
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+            }
+            .padding(.vertical)
+            .navigationTitle(isEditing ? "Editar Item" : "Nuevo Item")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancelar") {
+                        isPresented = false
+                    }
+                    .foregroundColor(.gray)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Guardar") {
+                        onSave()
+                        isPresented = false
+                    }
+                    .foregroundColor(.red)
+                    .disabled(!isFormValid)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+struct CategoryManagementSheet: View {
+    @Binding var isPresented: Bool
+    let entries: [Entry]
+    let modelContext: ModelContext
+    @Environment(\.dismiss) private var dismiss
+    
+    @Query private var allItems: [Item]
+    @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
+    
+    // Structure to group entries by category with money spent
+    struct CategoryStats {
+        let category: String
+        let entries: [Entry]
+        let totalSpent: Double
+        let currency: String
+    }
+    
+    // Get current home group
+    var currentHomeGroup: HomeGroup? {
+        guard let selectedHomeGroupId = homeGroups.first?.id else { return nil }
+        return homeGroups.first { $0.id == selectedHomeGroupId }
+    }
+    
+    // Computed property to group entries by category with money calculations
+    private var categoryStats: [CategoryStats] {
+        let grouped = Dictionary(grouping: entries) { $0.category }
+        return grouped.map { category, categoryEntries in
+            let totalSpent = categoryEntries.reduce(0.0) { total, entry in
+                let items = allItems.filter { $0.entryId == entry.id }
+                let entryTotal = items.reduce(0.0) { $0 + $1.money }
+                return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
+            }
+            return CategoryStats(
+                category: category,
+                entries: categoryEntries,
+                totalSpent: totalSpent,
+                currency: currentHomeGroup?.currency ?? "USD"
+            )
+        }.sorted { $0.totalSpent > $1.totalSpent }
+    }
+    
+    // Get maximum spent amount for progress bar scaling
+    private var maxSpentAmount: Double {
+        let maxAmount = categoryStats.map { $0.totalSpent }.max() ?? 0
+        return maxAmount > 0 ? maxAmount : 1.0
+    }
+    
+    private func categoryDisplayName(for category: String) -> String {
+        switch category {
+        case "comida": return "Comida"
+        case "hogar": return "Hogar"
+        case "salud": return "Salud"
+        case "ocio": return "Ocio"
+        case "transporte": return "Transporte"
+        case "otros": return "Otros"
+        default: return category.capitalized
+        }
+    }
+    
+    private func categoryColor(for category: String) -> Color {
+        switch category {
+        case "comida": return .red
+        case "hogar": return .blue
+        case "salud": return .green
+        case "ocio": return .purple
+        case "transporte": return .orange
+        default: return .gray
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Button("Cerrar") {
+                        dismiss()
+                    }
+                    .foregroundColor(.red)
+                    
+                    Spacer()
+                    
+                    Text("Gastos por Categoría")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    Spacer()
+                    
+                    // Invisible button for balance
+                    Button("Cerrar") {
+                        dismiss()
+                    }
+                    .foregroundColor(.clear)
+                    .disabled(true)
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                
+                if let homeGroup = currentHomeGroup {
+                    // Home Group Info
+                    HStack {
+                        Text(homeGroup.name)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        let currencySymbol = Currency(rawValue: homeGroup.currency)?.symbol ?? "$"
+                        Text("Moneda: \(currencySymbol)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                }
+                
+                // Categories list with money spent
+                List {
+                    ForEach(categoryStats, id: \.category) { categoryStat in
+                        Section(header: 
+                            HStack {
+                                Circle()
+                                    .fill(categoryColor(for: categoryStat.category))
+                                    .frame(width: 20, height: 20)
+                                Text(categoryDisplayName(for: categoryStat.category))
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Text("(\(categoryStat.entries.count))")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                // Show max amount for reference
+                                let currencySymbol = Currency(rawValue: categoryStat.currency)?.symbol ?? "$"
+                                Text("Máx: \(currencySymbol)\(String(format: "%.0f", maxSpentAmount))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(4)
+                            }
+                            .padding(.vertical, 4)
+                        ) {
+                            let progress = maxSpentAmount > 0 ? categoryStat.totalSpent / maxSpentAmount : 0.0
+                            let currencySymbol = Currency(rawValue: categoryStat.currency)?.symbol ?? "$"
+                            
+                            // Progress bar with money info
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    // Background bar
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color(.systemGray5))
+                                        .frame(height: 32)
+                                    
+                                    // Progress bar
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(categoryStat.totalSpent == 0 ? Color.orange : categoryColor(for: categoryStat.category))
+                                        .frame(width: max(0, geometry.size.width * CGFloat(progress)), height: 32)
+                                        .animation(.easeInOut(duration: 0.3), value: progress)
+                                    
+                                    // Category label with money
+                                    HStack {
+                                        Text(categoryDisplayName(for: categoryStat.category))
+                                            .font(.body)
+                                            .fontWeight(.medium)
+                                            .foregroundColor(categoryStat.totalSpent == 0 ? .black : .white)
+                                            .lineLimit(1)
+                                            .padding(.horizontal, 12)
+                                        
+                                        Spacer()
+                                        
+                                        // Money amount on the right side of the bar
+                                        Text("\(currencySymbol)\(String(format: "%.0f", categoryStat.totalSpent))")
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(categoryStat.totalSpent == 0 ? .black : .white)
+                                            .padding(.trailing, 12)
+                                    }
+                                }
+                                .frame(height: 32)
+                            }
+                            .frame(height: 32)
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+                .listStyle(PlainListStyle())
+                
+                // Stats footer
+                VStack(spacing: 8) {
+                    let totalSpent = categoryStats.reduce(0) { $0 + $1.totalSpent }
+                    let currencySymbol = Currency(rawValue: currentHomeGroup?.currency ?? "USD")?.symbol ?? "$"
+                    
+                    HStack {
+                        Text("Total gastado: \(currencySymbol)\(String(format: "%.0f", totalSpent))")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("Categorías: \(categoryStats.count)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    let emptyCategories = categoryStats.filter { $0.totalSpent == 0 }.count
+                    if emptyCategories > 0 {
+                        Text("Categorías sin gastos: \(emptyCategories)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+struct HomeGroupManagementSheet: View {
+    @Binding var isPresented: Bool
+    let homeGroups: [HomeGroup]
+    let modelContext: ModelContext
+    @Binding var selectedHomeGroupId: String?
+    
+    @State private var showingAddHomeGroup = false
+    @State private var newHomeGroupName = ""
+    @State private var newHomeGroupCurrency = Currency.usd.rawValue
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Button("Cerrar") {
+                        isPresented = false
+                    }
+                    .foregroundColor(.red)
+                    
+                    Spacer()
+                    
+                    Text("Gestión de Grupos")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        showingAddHomeGroup = true
+                    }) {
+                        Image(systemName: "plus")
+                            .foregroundColor(.red)
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                
+                if homeGroups.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "house")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No hay grupos")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(Color(.systemGray))
+                        
+                        Text("Crea tu primer grupo para organizar tus gastos")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                        
+                        Button(action: {
+                            showingAddHomeGroup = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Crear Primer Grupo")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.red)
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding()
+                } else {
+                    List {
+                        ForEach(homeGroups, id: \.id) { homeGroup in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(homeGroup.name)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                    
+                                    let currencySymbol = Currency(rawValue: homeGroup.currency)?.symbol ?? "$"
+                                    Text("Moneda: \(currencySymbol) (\(homeGroup.currency))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                if selectedHomeGroupId == homeGroup.id {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedHomeGroupId = homeGroup.id
+                            }
+                        }
+                        .onDelete { offsets in
+                            let groupsToDelete = offsets.map { homeGroups[$0] }
+                            deleteHomeGroups(groupsToDelete)
+                        }
+                    }
+                    .listStyle(PlainListStyle())
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddHomeGroup) {
+            AddHomeGroupSheet(
+                isPresented: $showingAddHomeGroup,
+                homeGroupName: $newHomeGroupName,
+                homeGroupCurrency: $newHomeGroupCurrency,
+                onSave: {
+                    addHomeGroup()
+                }
+            )
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+    
+    private func addHomeGroup() {
+        withAnimation {
+            let newHomeGroup = HomeGroup(
+                name: newHomeGroupName,
+                currency: newHomeGroupCurrency
+            )
+            modelContext.insert(newHomeGroup)
+            
+            // If this is the first home group, select it automatically
+            if homeGroups.isEmpty {
+                selectedHomeGroupId = newHomeGroup.id
+            }
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error saving home group: \(error)")
+            }
+        }
+        
+        // Reset form
+        newHomeGroupName = ""
+        newHomeGroupCurrency = Currency.usd.rawValue
+    }
+    
+    private func deleteHomeGroups(_ groups: [HomeGroup]) {
+        withAnimation {
+            for group in groups {
+                modelContext.delete(group)
+            }
+            
+            // If we deleted the selected group, select the first available one
+            if groups.contains(where: { $0.id == selectedHomeGroupId }) {
+                selectedHomeGroupId = homeGroups.first { !groups.contains($0) }?.id
+            }
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error deleting home groups: \(error)")
+            }
+        }
+    }
+}
+
+struct AddHomeGroupSheet: View {
+    @Binding var isPresented: Bool
+    @Binding var homeGroupName: String
+    @Binding var homeGroupCurrency: String
+    var onSave: () -> Void
+    
+    @FocusState private var focusedField: Field?
+    
+    private var isFormValid: Bool {
+        !homeGroupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
+    enum Field {
+        case name
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Home Group Name Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Nombre del Grupo")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    TextField("Ej: Gastos Diarios", text: $homeGroupName)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                        .focused($focusedField, equals: .name)
+                }
+                .padding(.horizontal)
+                
+                // Currency Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Moneda")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    Menu {
+                        ForEach(Currency.allCases, id: \.self) { currency in
+                            Button(action: {
+                                homeGroupCurrency = currency.rawValue
+                            }) {
+                                HStack {
+                                    Text(currency.displayName)
+                                    if homeGroupCurrency == currency.rawValue {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            let selectedCurrency = Currency(rawValue: homeGroupCurrency)
+                            Text(selectedCurrency?.displayName ?? "Seleccionar Moneda")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                    }
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+            }
+            .padding(.vertical)
+            .navigationTitle("Nuevo Grupo")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancelar") {
+                        isPresented = false
+                    }
+                    .foregroundColor(.gray)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Guardar") {
+                        onSave()
+                        isPresented = false
+                    }
+                    .foregroundColor(.red)
+                    .disabled(!isFormValid)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+}
+
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: [HomeGroup.self, Entry.self, Item.self], inMemory: true)
+}
+
+// Extension for stable date formatting
+extension DateFormatter {
+    static let sectionFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 }
