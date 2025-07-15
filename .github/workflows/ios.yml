@@ -1,0 +1,168 @@
+name: iOS CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode
+      run: sudo xcode-select -switch /Applications/Xcode_15.2.app
+      
+    - name: Run Unit Tests
+      run: |
+        xcodebuild test \
+          -scheme "omo-money" \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+          -enableCodeCoverage YES \
+          PRODUCT_BUNDLE_IDENTIFIER=com.dennis.omo-money \
+          | xcpretty
+          
+    - name: Run UI Tests
+      run: |
+        xcodebuild test \
+          -scheme "omo-money" \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+          -only-testing:omo-moneyUITests \
+          PRODUCT_BUNDLE_IDENTIFIER=com.dennis.omo-money \
+          | xcpretty
+
+  build:
+    name: Build App
+    runs-on: macos-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode
+      run: sudo xcode-select -switch /Applications/Xcode_15.2.app
+      
+    - name: Build for Simulator
+      run: |
+        xcodebuild build \
+          -scheme "omo-money" \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+          PRODUCT_BUNDLE_IDENTIFIER=com.dennis.omo-money \
+          | xcpretty
+          
+    - name: Build for Device
+      run: |
+        xcodebuild build \
+          -scheme "omo-money" \
+          -destination 'generic/platform=iOS' \
+          PRODUCT_BUNDLE_IDENTIFIER=com.dennis.omo-money \
+          | xcpretty
+
+  security:
+    name: Security Check
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run SwiftLint (if configured)
+      run: |
+        if command -v swiftlint &> /dev/null; then
+          swiftlint
+        else
+          echo "SwiftLint not installed, skipping..."
+        fi
+        
+    - name: Check for sensitive data
+      run: |
+        # Check for hardcoded API keys, passwords, etc.
+        # Use more specific patterns to avoid false positives
+        echo "🔍 Checking for sensitive data patterns..."
+        
+        # Check for API keys (common patterns)
+        if grep -r "api_key\|apikey\|api-key\|API_KEY\|APIKEY" . \
+          --exclude-dir=.git \
+          --exclude-dir=DerivedData \
+          --exclude-dir=*.xcodeproj/xcuserdata \
+          --exclude-dir=*.xcodeproj/project.xcworkspace/xcuserdata \
+          --exclude=*.entitlements \
+          --exclude=*.plist \
+          --exclude=*.xcscheme \
+          --exclude=CHANGELOG.md \
+          --exclude=*.md \
+          --exclude=*.yml \
+          --exclude=*.yaml; then
+          echo "⚠️  Potential API keys found in code"
+          exit 1
+        fi
+        
+        # Check for passwords (more specific)
+        if grep -r "password.*=.*['\"].*['\"]\|password.*:.*['\"].*['\"]" . \
+          --exclude-dir=.git \
+          --exclude-dir=DerivedData \
+          --exclude-dir=*.xcodeproj/xcuserdata \
+          --exclude-dir=*.xcodeproj/project.xcworkspace/xcuserdata \
+          --exclude=*.entitlements \
+          --exclude=*.plist \
+          --exclude=*.xcscheme \
+          --exclude=CHANGELOG.md \
+          --exclude=*.md \
+          --exclude=*.yml \
+          --exclude=*.yaml; then
+          echo "⚠️  Potential hardcoded passwords found in code"
+          exit 1
+        fi
+        
+        # Check for access tokens (more specific)
+        if grep -r "access_token\|accessToken\|ACCESS_TOKEN\|ACCESSTOKEN" . \
+          --exclude-dir=.git \
+          --exclude-dir=DerivedData \
+          --exclude-dir=*.xcodeproj/xcuserdata \
+          --exclude-dir=*.xcodeproj/project.xcworkspace/xcuserdata \
+          --exclude=*.entitlements \
+          --exclude=*.plist \
+          --exclude=*.xcscheme \
+          --exclude=CHANGELOG.md \
+          --exclude=*.md \
+          --exclude=*.yml \
+          --exclude=*.yaml; then
+          echo "⚠️  Potential access tokens found in code"
+          exit 1
+        fi
+        
+        echo "✅ No sensitive data patterns found"
+
+  archive:
+    name: Create Archive
+    runs-on: macos-latest
+    needs: [test, build, security]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode
+      run: sudo xcode-select -switch /Applications/Xcode_15.2.app
+      
+    - name: Create Archive
+      run: |
+        xcodebuild archive \
+          -scheme "omo-money" \
+          -archivePath build/omo-money.xcarchive \
+          -destination 'generic/platform=iOS' \
+          PRODUCT_BUNDLE_IDENTIFIER=com.dennis.omo-money \
+          | xcpretty
+          
+    - name: Upload Archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: omo-money-archive
+        path: build/omo-money.xcarchive 

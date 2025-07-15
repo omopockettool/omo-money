@@ -1,5 +1,5 @@
 //
-//  omo_moneyApp.swift
+//  OmoMoneyApp.swift
 //  omo-money
 //
 //  Created by Dennis Chicaiza A on 15/7/25.
@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct omo_moneyApp: App {
+struct OmoMoneyApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
