@@ -5,7 +5,78 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-01-15
+## [1.1.0] - 2025-07-21
+
+### Added
+- **Advanced Filtering System**:
+  - Date filter with month/year selection (1970 to current year)
+  - Category filter with all predefined categories plus "Todas" option
+  - Combined filtering: filter by date AND category simultaneously
+  - "Todos los meses" option to view entire year data
+  - Filter sheet with intuitive dropdown interface
+- **Enhanced Filter Controls**:
+  - Dedicated filter button with visual indicators
+  - "Restaurar" button to reset filters to current month/year
+  - "Aceptar" button to apply selected filters
+  - Real-time filter status display in filter button
+- **Improved Widget Design**:
+  - Redesigned Total Gastado widget with modern styling
+  - Integrated quick action button for adding entries
+  - Better visual hierarchy with improved typography
+  - Shadow effects and rounded corners for modern look
+- **Smart Filter Indicators**:
+  - Visual feedback showing active filters
+  - Date format: "Ene 2025" or "2025" for year view
+  - Category display: "Comida", "Hogar", etc.
+  - Combined indicators: "Ene 2025 • Comida"
+
+### Changed
+- **Navigation Layout**:
+  - Changed title display mode from `.large` to `.inline` for better space utilization
+  - Reduced header padding for more compact layout
+  - Removed duplicate "+" button from header (now in widget)
+- **Filter Logic**:
+  - Enhanced `filteredEntries` to support both date and category filtering
+  - Improved date range calculations for month and year views
+  - Added helper functions for category name conversion
+- **Widget Functionality**:
+  - Total Gastado widget now shows even when no entries exist
+  - Integrated entry creation directly in the widget
+  - Better visual feedback for empty states
+
+### Technical
+- **Filter Architecture**:
+  - Added `selectedCategory` and `tempSelectedCategory` state variables
+  - Implemented `getCategoryRawValue()` helper function for category conversion
+  - Enhanced `filteredEntries` computed property with dual filtering
+  - Added `showAllMonths` state for year-wide filtering
+- **UI Components**:
+  - Created `FiltersSheet` component with comprehensive filter controls
+  - Implemented proper state management for temporary filter values
+  - Added visual indicators for active filter status
+- **Data Processing**:
+  - Improved date filtering with proper calendar calculations
+  - Enhanced category filtering with display name to raw value conversion
+  - Optimized filter performance with computed properties
+
+### Features
+- **Multi-Dimensional Filtering**: Filter by date range AND category simultaneously
+- **Flexible Date Selection**: Choose specific month/year or entire year
+- **Category-Specific Views**: View spending for specific categories
+- **Quick Filter Reset**: One-tap reset to current month/year
+- **Visual Filter Status**: Always know what filters are active
+- **Enhanced Widget**: More functional and visually appealing total display
+- **Improved Navigation**: Better space utilization and cleaner layout
+
+### User Experience
+- **Intuitive Filtering**: Easy-to-use dropdown interface for all filters
+- **Immediate Feedback**: Visual indicators show active filters instantly
+- **Quick Actions**: Add entries directly from the total widget
+- **Flexible Views**: Switch between monthly and yearly perspectives
+- **Clean Interface**: Modern design with better visual hierarchy
+- **Efficient Navigation**: Optimized layout with better space usage
+
+## [1.0.0] - 2025-07-15
 
 ### Added
 - **Home Group System**:
