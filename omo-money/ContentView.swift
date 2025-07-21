@@ -27,11 +27,68 @@ struct ContentView: View {
     @State private var editingEntry: Entry? = nil
     @State private var showingCategoryManagement = false
     @State private var showingHomeGroupManagement = false
+    @State private var selectedMonthYear = Date() // Default to current month
+    @State private var showingFilters = false
+    @State private var tempSelectedMonthYear = Date() // For the filter sheet
+    @State private var showAllMonths = false // Track if showing all months for the year
+    @State private var selectedCategory = "Todas" // Track selected category filter
+    @State private var tempSelectedMonth = Calendar.current.component(.month, from: Date()) - 1 // 0-11
+    @State private var tempSelectedYear = Calendar.current.component(.year, from: Date())
+    @State private var tempShowAllMonths = false // For "All months" option
+    @State private var tempSelectedCategory = "Todas" // For category filter
     
-    // Filter entries by selected home group
+    // Helper function to convert displayName to rawValue
+    private func getCategoryRawValue(from displayName: String) -> String {
+        if displayName == "Todas" {
+            return "Todas"
+        }
+        
+        for category in EntryCategory.allCases {
+            if category.displayName == displayName {
+                return category.rawValue
+            }
+        }
+        return "otros" // fallback
+    }
+    
+    // Filter entries by selected home group, month/year, and category
     var filteredEntries: [Entry] {
         guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
-        return entries.filter { $0.homeGroupId == selectedHomeGroupId }
+        
+        let calendar = Calendar.current
+        
+        // First filter by date
+        let dateFilteredEntries: [Entry]
+        if showAllMonths {
+            let startOfYear = calendar.dateInterval(of: .year, for: selectedMonthYear)?.start ?? selectedMonthYear
+            let endOfYear = calendar.dateInterval(of: .year, for: selectedMonthYear)?.end ?? selectedMonthYear
+            
+            dateFilteredEntries = entries.filter { entry in
+                entry.homeGroupId == selectedHomeGroupId &&
+                entry.date >= startOfYear &&
+                entry.date < endOfYear
+            }
+        } else {
+            // Filter by specific month
+            let startOfMonth = calendar.dateInterval(of: .month, for: selectedMonthYear)?.start ?? selectedMonthYear
+            let endOfMonth = calendar.dateInterval(of: .month, for: selectedMonthYear)?.end ?? selectedMonthYear
+            
+            dateFilteredEntries = entries.filter { entry in
+                entry.homeGroupId == selectedHomeGroupId &&
+                entry.date >= startOfMonth &&
+                entry.date < endOfMonth
+            }
+        }
+        
+        // Then filter by category
+        if selectedCategory == "Todas" {
+            return dateFilteredEntries
+        } else {
+            let categoryRawValue = getCategoryRawValue(from: selectedCategory)
+            return dateFilteredEntries.filter { entry in
+                entry.category == categoryRawValue
+            }
+        }
     }
     
     // Group entries by date (without time) with stable section identifiers
@@ -52,13 +109,10 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack {
-                // Home Group Selector
+                // Home Group and Month/Year Selector
                 if !homeGroups.isEmpty {
                     HStack {
-                        Text("Grupo:")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
+                        // Home Group Dropdown
                         Menu {
                             ForEach(homeGroups, id: \.id) { homeGroup in
                                 Button(action: {
@@ -85,21 +139,63 @@ struct ContentView: View {
                             .cornerRadius(8)
                         }
                         
-                        Spacer()
-                        
+                        // Filters Button
                         Button(action: {
-                            prepareForNewEntry()
+                                                    // Set temp values to current
+                        let calendar = Calendar.current
+                        tempSelectedMonth = calendar.component(.month, from: selectedMonthYear) - 1
+                        tempSelectedYear = calendar.component(.year, from: selectedMonthYear)
+                        tempShowAllMonths = showAllMonths
+                        tempSelectedCategory = selectedCategory
+                        
+                        showingFilters = true
                         }) {
-                            Image(systemName: "plus")
-                                .foregroundColor(.red)
+                            HStack(spacing: 4) {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                                    .foregroundColor(.primary)
+                                
+                                // Show current filter indicator
+                                if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) || selectedCategory != "Todas" {
+                                    HStack(spacing: 4) {
+                                        if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
+                                            if showAllMonths {
+                                                Text(String(Calendar.current.component(.year, from: selectedMonthYear)))
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            } else {
+                                                Text(DateFormatter.monthYearFormatter.string(from: selectedMonthYear))
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+                                        
+                                        if selectedCategory != "Todas" {
+                                            if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
+                                                Text("•")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            Text(selectedCategory)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                         }
+                        
+                        Spacer()
                     }
                     .padding(.horizontal)
-                    .padding(.top)
+                    .padding(.top, 4)
                 }
                 
                 // Total Spent Widget
-                if let currentHomeGroup = currentHomeGroup, !filteredEntries.isEmpty {
+                if let currentHomeGroup = currentHomeGroup {
                     let totalSpent = filteredEntries.reduce(0.0) { total, entry in
                         let items = allItems.filter { $0.entryId == entry.id }
                         let entryTotal = items.reduce(0.0) { $0 + $1.money }
@@ -108,31 +204,36 @@ struct ContentView: View {
                     let currencySymbol = Currency(rawValue: currentHomeGroup.currency)?.symbol ?? "$"
                     
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Total Gastado")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Total Gastado")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                            }
+                            
                             Text("\(currencySymbol)\(String(format: "%.2f", totalSpent))")
-                                .font(.title2)
+                                .font(.title)
                                 .fontWeight(.bold)
                                 .foregroundColor(.red)
                         }
                         
                         Spacer()
                         
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("Entries")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text("\(filteredEntries.count)")
+                        // Quick action button
+                        Button(action: {
+                            prepareForNewEntry()
+                        }) {
+                            Image(systemName: "plus.circle.fill")
                                 .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.primary)
+                                .foregroundColor(.red)
                         }
                     }
                     .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    )
                     .padding(.horizontal)
                     .padding(.top, 8)
                 }
@@ -260,7 +361,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("OMO Money")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Category Management button
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -313,6 +414,19 @@ struct ContentView: View {
                     homeGroups: homeGroups,
                     modelContext: modelContext,
                     selectedHomeGroupId: $selectedHomeGroupId
+                )
+            }
+            .sheet(isPresented: $showingFilters) {
+                FiltersSheet(
+                    isPresented: $showingFilters,
+                    selectedMonthYear: $selectedMonthYear,
+                    tempSelectedMonthYear: $tempSelectedMonthYear,
+                    tempSelectedMonth: $tempSelectedMonth,
+                    tempSelectedYear: $tempSelectedYear,
+                    tempShowAllMonths: $tempShowAllMonths,
+                    showAllMonths: $showAllMonths,
+                    tempSelectedCategory: $tempSelectedCategory,
+                    selectedCategory: $selectedCategory
                 )
             }
             .sheet(item: $selectedEntry) { entry in
@@ -1676,6 +1790,249 @@ struct AddHomeGroupSheet: View {
     }
 }
 
+// MARK: - Filters Sheet
+struct FiltersSheet: View {
+    @Binding var isPresented: Bool
+    @Binding var selectedMonthYear: Date
+    @Binding var tempSelectedMonthYear: Date
+    @Binding var tempSelectedMonth: Int
+    @Binding var tempSelectedYear: Int
+    @Binding var tempShowAllMonths: Bool
+    @Binding var showAllMonths: Bool
+    @Binding var tempSelectedCategory: String
+    @Binding var selectedCategory: String
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Date Filter Section
+                VStack(alignment: .leading, spacing: 12) {
+                    // Text("Fecha:")
+                    //     .font(.headline)
+                    //     .foregroundColor(.primary)
+                    
+                    HStack(spacing: 12) {
+                        // Month Dropdown
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Mes")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Menu {
+                                // "All months" option
+                                Button(action: {
+                                    tempShowAllMonths = true
+                                }) {
+                                    HStack {
+                                        Text("Todos los meses")
+                                        if tempShowAllMonths {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                                
+                                Divider()
+                                
+                                // Individual months
+                                ForEach(getMonthOptions(), id: \.index) { month in
+                                    Button(action: {
+                                        tempSelectedMonth = month.index
+                                        tempShowAllMonths = false
+                                    }) {
+                                        HStack {
+                                            Text(month.name)
+                                            if tempSelectedMonth == month.index && !tempShowAllMonths {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    if tempShowAllMonths {
+                                        Text("Todos los meses")
+                                            .foregroundColor(.primary)
+                                    } else {
+                                        Text(getMonthOptions().first { $0.index == tempSelectedMonth }?.name ?? "Seleccionar")
+                                            .foregroundColor(.primary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            }
+                        }
+                        
+                        // Year Dropdown
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Año")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Menu {
+                                ForEach(getYearOptions(), id: \.self) { year in
+                                    Button(action: {
+                                        tempSelectedYear = year
+                                    }) {
+                                        HStack {
+                                            Text(String(year))
+                                            if tempSelectedYear == year {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Text(String(tempSelectedYear))
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                
+                // Category Filter Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Categoría:")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Menu {
+                        ForEach(getCategoryOptions(), id: \.self) { category in
+                            Button(action: {
+                                tempSelectedCategory = category
+                            }) {
+                                HStack {
+                                    Text(category)
+                                    if tempSelectedCategory == category {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(tempSelectedCategory)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+            }
+            .padding(.vertical)
+            .navigationTitle("Filtros")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Restaurar") {
+                        // Reset to current month and year
+                        let calendar = Calendar.current
+                        let currentDate = Date()
+                        tempSelectedMonth = calendar.component(.month, from: currentDate) - 1
+                        tempSelectedYear = calendar.component(.year, from: currentDate)
+                        tempShowAllMonths = false
+                        showAllMonths = false
+                        tempSelectedCategory = "Todas"
+                        selectedCategory = "Todas"
+                        
+                        // Apply the reset immediately by updating selectedMonthYear
+                        var components = DateComponents()
+                        components.year = tempSelectedYear
+                        components.month = tempSelectedMonth + 1
+                        components.day = 1
+                        
+                        if let newDate = calendar.date(from: components) {
+                            selectedMonthYear = newDate
+                        }
+                        
+                        isPresented = false
+                    }
+                    .foregroundColor(.gray)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Aceptar") {
+                        // Update the main state to reflect the applied filter
+                        showAllMonths = tempShowAllMonths
+                        selectedCategory = tempSelectedCategory
+                        
+                        // Update selectedMonthYear to reflect the current filter
+                        let calendar = Calendar.current
+                        if tempShowAllMonths {
+                            // For "all months", set to first day of the year
+                            var components = DateComponents()
+                            components.year = tempSelectedYear
+                            components.month = 1
+                            components.day = 1
+                            
+                            if let newDate = calendar.date(from: components) {
+                                selectedMonthYear = newDate
+                            }
+                        } else {
+                            // Convert month and year to Date
+                            var components = DateComponents()
+                            components.year = tempSelectedYear
+                            components.month = tempSelectedMonth + 1
+                            components.day = 1
+                            
+                            if let newDate = calendar.date(from: components) {
+                                selectedMonthYear = newDate
+                            }
+                        }
+                        
+                        isPresented = false
+                    }
+                    .foregroundColor(.red)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+
+    }
+    
+    // Helper functions (need to be accessible)
+    private func getMonthOptions() -> [(index: Int, name: String)] {
+        let months = [
+            (0, "Enero"), (1, "Febrero"), (2, "Marzo"), (3, "Abril"),
+            (4, "Mayo"), (5, "Junio"), (6, "Julio"), (7, "Agosto"),
+            (8, "Septiembre"), (9, "Octubre"), (10, "Noviembre"), (11, "Diciembre")
+        ]
+        return months
+    }
+    
+    private func getYearOptions() -> [Int] {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        return Array(1970...currentYear).reversed()
+    }
+    
+    private func getCategoryOptions() -> [String] {
+        return ["Todas"] + EntryCategory.allCases.map { $0.displayName }
+    }
+}
+
 #Preview {
     ContentView()
         .modelContainer(for: [HomeGroup.self, Entry.self, Item.self], inMemory: true)
@@ -1686,6 +2043,13 @@ extension DateFormatter {
     static let sectionFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+    
+    static let monthYearFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy"
+        formatter.locale = Locale(identifier: "es_ES")
         return formatter
     }()
 }
