@@ -432,6 +432,12 @@ struct ContentView: View {
             .sheet(item: $selectedEntry) { entry in
                 EntryDetailView(entry: entry)
             }
+            .onAppear {
+                // Auto-select the first home group if none is selected
+                if selectedHomeGroupId == nil && !homeGroups.isEmpty {
+                    selectedHomeGroupId = homeGroups.first?.id
+                }
+            }
         }
     }
     
