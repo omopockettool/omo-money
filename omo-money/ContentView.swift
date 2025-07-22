@@ -536,18 +536,27 @@ struct EntryRowView: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 16) {
                 Text(entry.title)
                     .font(.headline)
                     .foregroundColor(.primary)
                 
-                Text(entry.category.capitalized)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(categoryColor(entry.category))
-                    .foregroundColor(.white)
-                    .cornerRadius(4)
+                HStack(spacing: 8) {
+                    Text(entry.category.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(categoryColor(entry.category))
+                        .foregroundColor(.white)
+                        .cornerRadius(4)
+                    
+                    // Show list icon only when entry has items
+                    if !items.isEmpty {
+                        Image(systemName: "list.bullet")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
             
             Spacer()
@@ -616,11 +625,11 @@ struct AddEntrySheet: View {
                 VStack(spacing: 20) {
                     // Entry Title Section
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Título del Entry")
+                        Text("Descripción")
                             .font(.headline)
                             .foregroundColor(Color(.systemGray))
                         
-                        TextField("Ej: Compra del supermercado", text: $entryTitle)
+                        TextField("Ej: Compra del super, Gimnasio, etc.", text: $entryTitle)
                             .padding(8)
                             .background(Color(.systemGray6))
                             .cornerRadius(8)
@@ -809,36 +818,36 @@ struct AddEntrySheet: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                             
-                            Button(action: {
-                                entryType = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "arrow.up.circle")
-                                        .foregroundColor(.green)
-                                    Text("Ingreso")
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                    if entryType {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.green)
-                                    }
-                                }
-                                .padding()
-                                .background(entryType ? Color.green.opacity(0.1) : Color(.systemGray6))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(entryType ? Color.green : Color(.systemGray4), lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(PlainButtonStyle())
+                            // Button(action: {
+                            //     entryType = true
+                            // }) {
+                            //     HStack {
+                            //         Image(systemName: "arrow.up.circle")
+                            //             .foregroundColor(.green)
+                            //         Text("Ingreso")
+                            //             .foregroundColor(.primary)
+                            //         Spacer()
+                            //         if entryType {
+                            //             Image(systemName: "checkmark")
+                            //                 .foregroundColor(.green)
+                            //         }
+                            //     }
+                            //     .padding()
+                            //     .background(entryType ? Color.green.opacity(0.1) : Color(.systemGray6))
+                            //     .cornerRadius(8)
+                            //     .overlay(
+                            //         RoundedRectangle(cornerRadius: 8)
+                            //             .stroke(entryType ? Color.green : Color(.systemGray4), lineWidth: 1)
+                            //     )
+                            // }
+                            // .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding(.horizontal)
                 }
                 .padding(.vertical)
             }
-            .navigationTitle(isEditing ? "Editar Entry" : "Nuevo Entry")
+            .navigationTitle(isEditing ? "Editar Entrada" : "Nueva Entrada")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -1150,7 +1159,7 @@ struct ItemRowView: View {
                     .foregroundColor(.primary)
                 
                 if let amount = item.amount {
-                    Text("Cantidad: \(amount)")
+                    Text("Monto: \(amount)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
