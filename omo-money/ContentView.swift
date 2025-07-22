@@ -1165,7 +1165,7 @@ struct ItemRowView: View {
                     .foregroundColor(.primary)
                 
                 if let amount = item.amount {
-                    Text("Monto: \(amount)")
+                    Text("Cantidad: \(amount)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
