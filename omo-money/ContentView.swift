@@ -683,6 +683,8 @@ struct AddEntrySheet: View {
                             .foregroundColor(Color(.systemGray))
                         
                         Button(action: {
+                            // Cerrar el teclado antes de mostrar el date picker
+                            focusedField = nil
                             showDatePicker.toggle()
                         }) {
                             HStack {
