@@ -5,6 +5,74 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-24
+
+### Added
+- **App Sharing Functionality**:
+  - New "Compartir OMO Money" section in app info
+  - Native iOS sharing sheet integration
+  - Share app description and download link via WhatsApp, Messages, Email, etc.
+  - Custom sharing message with app description and App Store link
+  - ShareSheet component using UIActivityViewController
+- **Enhanced App Information**:
+  - Reorganized AppInfoSheet with clear section separation
+  - Improved visual layout with proper dividers covering full width
+  - Better section organization: App Title, About, Donations, Share, Ecosystem, Contact
+  - Updated app description to "herramienta de bolsillo"
+- **Improved UI Structure**:
+  - Each section now in separate VStack for better organization
+  - Consistent padding and spacing between sections
+  - Full-width dividers between sections
+  - Better visual hierarchy and readability
+
+### Changed
+- **AppInfoSheet Layout**:
+  - Restructured into 6 distinct sections with proper separation
+  - Section 1: App Icon and Title
+  - Section 2: About OMO Money (updated description)
+  - Section 3: Donations (¿Te gusta OMO Money?)
+  - Section 4: Share App (new section)
+  - Section 5: OMO Ecosystem
+  - Section 6: Contact, Developer signature, and Version
+- **Sharing Implementation**:
+  - Simplified ShareSheet component for better performance
+  - Removed unnecessary activity type exclusions
+  - Optimized for iPhone and iPad compatibility
+  - Clean sharing message with emoji and proper formatting
+
+### Technical
+- **ShareSheet Component**:
+  - UIViewControllerRepresentable implementation
+  - UIActivityViewController integration
+  - iPad popover configuration
+  - Proper state management with @State variables
+- **App Info Architecture**:
+  - Modular section-based layout
+  - Consistent spacing and padding system
+  - Proper divider implementation
+  - State management for sharing functionality
+
+### Features
+- **Native App Sharing**: Share OMO Money via any installed app
+- **WhatsApp Integration**: Direct sharing to WhatsApp contacts
+- **Multi-Platform Sharing**: Support for Messages, Email, Social Media, etc.
+- **Professional App Info**: Well-organized information sections
+- **Developer Recognition**: "Con 🤍 Dennis" signature section
+- **Ecosystem Promotion**: Link to OMO Pocket Tool catalog
+
+### User Experience
+- **Easy App Sharing**: One-tap sharing with native iOS interface
+- **Clear Information Structure**: Well-organized app information
+- **Professional Presentation**: Clean, modern app info layout
+- **Social Sharing**: Encourage app adoption through easy sharing
+- **Developer Connection**: Personal touch with developer signature
+
+### Social Features
+- **Viral Sharing**: Easy way to share app with friends and family
+- **Professional Messaging**: Pre-formatted sharing message
+- **App Store Integration**: Direct link to download page
+- **Community Building**: Encourage user adoption and feedback
+
 ## [1.1.0] - 2025-07-21
 
 ### Added
