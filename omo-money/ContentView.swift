@@ -650,7 +650,7 @@ struct AddEntrySheet: View {
                     // Money Section (only show for new entries, not editing)
                     if !isEditing {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Monto (opcional)")
+                            Text("Precio (opcional)")
                                 .font(.headline)
                                 .foregroundColor(Color(.systemGray))
                             
@@ -664,6 +664,7 @@ struct AddEntrySheet: View {
                                 )
                                 .keyboardType(.decimalPad)
                                 .focused($focusedField, equals: .money)
+
                                 .onChange(of: entryMoney) { _, newValue in
                                     // Convertir coma a punto para decimales
                                     let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
@@ -711,6 +712,10 @@ struct AddEntrySheet: View {
                                 .padding()
                                 .background(Color(.systemGray6))
                                 .cornerRadius(8)
+                                .onChange(of: entryDate) { _, _ in
+                                    // Close the date picker when a date is selected
+                                    showDatePicker = false
+                                }
                         }
                     }
                     .padding(.horizontal)
@@ -871,10 +876,48 @@ struct AddEntrySheet: View {
                     .foregroundColor(.red)
                     .disabled(!isFormValid)
                 }
+                
+                                ToolbarItemGroup(placement: .keyboard) {
+                    // Only show navigation arrows for new entries (not editing)
+                    if !isEditing {
+                        Button(action: {
+                            if focusedField == .money {
+                                focusedField = .title
+                            }
+                        }) {
+                            Image(systemName: "chevron.up")
+                        }
+                        .foregroundColor(.red)
+                        .disabled(focusedField == .title)
+                        
+                        Button(action: {
+                            if focusedField == .title {
+                                focusedField = .money
+                            }
+                        }) {
+                            Image(systemName: "chevron.down")
+                        }
+                        .foregroundColor(.red)
+                        .disabled(focusedField == .money)
+                    }
+ 
+                    Spacer()
+                    
+                    Button("Done") {
+                        focusedField = nil
+                    }
+                    .foregroundColor(.red)
+                }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            // Set focus to description field only for new entries, not when editing
+            if !isEditing {
+                focusedField = .title
+            }
+        }
     }
     
     private func categoryColor(_ category: String) -> Color {
@@ -1040,7 +1083,7 @@ struct EntryDetailView: View {
     
     private func prepareForNewItem() {
         itemMoney = ""
-        itemAmount = ""
+        itemAmount = "1"
         itemDescription = ""
         editingItem = nil
         showingAddItem = true
@@ -1067,10 +1110,13 @@ struct EntryDetailView: View {
     private func addItem() {
         guard let money = Double(itemMoney), !itemDescription.isEmpty else { return }
         
+        // Use 1 as default amount if empty
+        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
+        
         withAnimation {
             let newItem = Item(
                 money: money,
-                amount: Int(itemAmount),
+                amount: amount,
                 itemDescription: itemDescription,
                 entryId: entry.id
             )
@@ -1092,9 +1138,12 @@ struct EntryDetailView: View {
     private func updateItem(_ item: Item) {
         guard let money = Double(itemMoney), !itemDescription.isEmpty else { return }
         
+        // Use 1 as default amount if empty
+        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
+        
         withAnimation {
             item.money = money
-            item.amount = Int(itemAmount)
+            item.amount = amount
             item.itemDescription = itemDescription
             
             do {
@@ -1217,6 +1266,26 @@ struct AddItemSheet: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
+                // Description Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Descripción")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    TextField("Detallar cada producto tiene sus ventajas...", text: $itemDescription)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                        .focused($focusedField, equals: .description)
+                        .onChange(of: itemDescription) { _, newValue in
+                        }
+                }
+                .padding(.horizontal)
+
                 // Money Section
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Precio")
@@ -1262,26 +1331,6 @@ struct AddItemSheet: View {
                 }
                 .padding(.horizontal)
                 
-                // Description Section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Descripción")
-                        .font(.headline)
-                        .foregroundColor(Color(.systemGray))
-                    
-                    TextField("Ej: Leche", text: $itemDescription)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.systemGray4), lineWidth: 1)
-                        )
-                        .focused($focusedField, equals: .description)
-                        .onChange(of: itemDescription) { _, newValue in
-                        }
-                }
-                .padding(.horizontal)
-                
                 Spacer()
             }
             .padding(.vertical)
@@ -1302,6 +1351,40 @@ struct AddItemSheet: View {
                     }
                     .foregroundColor(.red)
                     .disabled(!isFormValid)
+                }
+                
+                ToolbarItemGroup(placement: .keyboard) {
+                    
+                    Button(action: {
+                        if focusedField == .amount {
+                            focusedField = .money
+                        } else if focusedField == .money {
+                            focusedField = .description
+                        }
+                    }) {
+                        Image(systemName: "chevron.up")
+                    }
+                    .foregroundColor(.red)
+                    .disabled(focusedField == .description)
+                    
+                    Button(action: {
+                        if focusedField == .description {
+                            focusedField = .money
+                        } else if focusedField == .money {
+                            focusedField = .amount
+                        }
+                    }) {
+                        Image(systemName: "chevron.down")
+                    }
+                    .foregroundColor(.red)
+                    .disabled(focusedField == .amount)
+                    
+                    Spacer()
+                    
+                    Button("Done") {
+                        focusedField = nil
+                    }
+                    .foregroundColor(.red)
                 }
             }
         }
