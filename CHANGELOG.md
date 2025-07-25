@@ -5,6 +5,153 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-25
+
+### Added
+- **Advanced Search Functionality**:
+  - Integrated search field directly in main interface (no sheet)
+  - Real-time search across entries and items
+  - Search in entry titles, categories, and item descriptions
+  - Case-insensitive search with whitespace trimming
+  - Search button positioned on the right side of the interface
+  - Auto-focus and keyboard activation when search is activated
+- **Enhanced Group Management**:
+  - Confirmation alert when deleting home groups
+  - Custom alert with group name: "¿Estás seguro de eliminar [Group Name]?"
+  - Delete button in red, Cancel button in gray
+  - Tap selected group to close management sheet
+  - Improved visual feedback with trash icon button
+- **Improved Date Formatting**:
+  - Updated date headers in entry list with bullet separator
+  - Format: "15 Jul 2025 • 3" (date • count)
+  - Consistent bullet formatting across the app
+  - Better visual separation between date and entry count
+
+### Changed
+- **Search Implementation**:
+  - Replaced search sheet with integrated search field
+  - Search field appears/disappears with smooth animation
+  - Magnifying glass icon moves to right side of search field
+  - Search button changes to X when active with red background
+  - Auto-clear search when deactivating search mode
+- **Group Management UX**:
+  - Removed swipe-to-delete (caused visual glitches)
+  - Added dedicated trash button for each group
+  - Confirmation required before group deletion
+  - Double-tap selected group to confirm and close sheet
+- **Search Results Handling**:
+  - Different messages for "no search results" vs "no entries in group"
+  - Search results message: "No hay entries o items que coincidan con '[search term]'"
+  - Clear search button when no results found
+  - Maintains compatibility with existing filters
+
+### Technical
+- **Search Architecture**:
+  - `@State private var isSearchActive: Bool` for search field visibility
+  - `@FocusState private var isSearchFieldFocused: Bool` for keyboard control
+  - Enhanced `filteredEntries` computed property with search logic
+  - Whitespace trimming: `searchText.trimmingCharacters(in: .whitespacesAndNewlines)`
+  - Search across multiple fields: title, category, and item descriptions
+- **Group Management**:
+  - `@State private var showingDeleteAlert: Bool` for confirmation alerts
+  - `@State private var groupsToDelete: [HomeGroup]` for deletion tracking
+  - Custom alert implementation with dynamic group names
+  - Proper state management for group selection and deletion
+- **UI Improvements**:
+  - Smooth animations with `.easeInOut(duration: 0.3)`
+  - Transition effects: `.move(edge: .top).combined(with: .opacity)`
+  - Improved button styling with conditional backgrounds
+  - Better visual hierarchy and spacing
+
+### Features
+- **Smart Search**: Find entries and items instantly as you type
+- **Flexible Search**: Search across titles, categories, and item descriptions
+- **Safe Group Deletion**: Confirmation alerts prevent accidental deletions
+- **Improved Navigation**: Double-tap to confirm group selection
+- **Better Visual Feedback**: Clear indicators for active states
+
+### User Experience
+- **Intuitive Search**: Integrated search field with auto-focus
+- **Safe Operations**: Confirmation dialogs for destructive actions
+- **Visual Clarity**: Better date formatting and visual separators
+- **Responsive Interface**: Real-time search results and smooth animations
+- **Consistent Design**: Unified bullet formatting across the app
+
+### Search Capabilities
+- **Multi-field Search**: Search in entry titles, categories, and item descriptions
+- **Case-insensitive**: No distinction between uppercase and lowercase
+- **Whitespace Handling**: Automatic trimming of leading/trailing spaces
+- **Real-time Results**: Instant filtering as you type
+- **Filter Compatibility**: Works with existing date and category filters
+
+## [1.2.0] - 2025-07-24
+
+### Added
+- **App Sharing Functionality**:
+  - New "Compartir OMO Money" section in app info
+  - Native iOS sharing sheet integration
+  - Share app description and download link via WhatsApp, Messages, Email, etc.
+  - Custom sharing message with app description and App Store link
+  - ShareSheet component using UIActivityViewController
+- **Enhanced App Information**:
+  - Reorganized AppInfoSheet with clear section separation
+  - Improved visual layout with proper dividers covering full width
+  - Better section organization: App Title, About, Donations, Share, Ecosystem, Contact
+  - Updated app description to "herramienta de bolsillo"
+- **Improved UI Structure**:
+  - Each section now in separate VStack for better organization
+  - Consistent padding and spacing between sections
+  - Full-width dividers between sections
+  - Better visual hierarchy and readability
+
+### Changed
+- **AppInfoSheet Layout**:
+  - Restructured into 6 distinct sections with proper separation
+  - Section 1: App Icon and Title
+  - Section 2: About OMO Money (updated description)
+  - Section 3: Donations (¿Te gusta OMO Money?)
+  - Section 4: Share App (new section)
+  - Section 5: OMO Ecosystem
+  - Section 6: Contact, Developer signature, and Version
+- **Sharing Implementation**:
+  - Simplified ShareSheet component for better performance
+  - Removed unnecessary activity type exclusions
+  - Optimized for iPhone and iPad compatibility
+  - Clean sharing message with emoji and proper formatting
+
+### Technical
+- **ShareSheet Component**:
+  - UIViewControllerRepresentable implementation
+  - UIActivityViewController integration
+  - iPad popover configuration
+  - Proper state management with @State variables
+- **App Info Architecture**:
+  - Modular section-based layout
+  - Consistent spacing and padding system
+  - Proper divider implementation
+  - State management for sharing functionality
+
+### Features
+- **Native App Sharing**: Share OMO Money via any installed app
+- **WhatsApp Integration**: Direct sharing to WhatsApp contacts
+- **Multi-Platform Sharing**: Support for Messages, Email, Social Media, etc.
+- **Professional App Info**: Well-organized information sections
+- **Developer Recognition**: "Con 🤍 Dennis" signature section
+- **Ecosystem Promotion**: Link to OMO Pocket Tool catalog
+
+### User Experience
+- **Easy App Sharing**: One-tap sharing with native iOS interface
+- **Clear Information Structure**: Well-organized app information
+- **Professional Presentation**: Clean, modern app info layout
+- **Social Sharing**: Encourage app adoption through easy sharing
+- **Developer Connection**: Personal touch with developer signature
+
+### Social Features
+- **Viral Sharing**: Easy way to share app with friends and family
+- **Professional Messaging**: Pre-formatted sharing message
+- **App Store Integration**: Direct link to download page
+- **Community Building**: Encourage user adoption and feedback
+
 ## [1.1.0] - 2025-07-21
 
 ### Added
