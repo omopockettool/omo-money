@@ -37,6 +37,10 @@ struct ContentView: View {
     @State private var tempShowAllMonths = false // For "All months" option
     @State private var tempSelectedCategory = "Todas" // For category filter
     @State private var showingAppInfo = false
+    @State private var showingSearch = false
+    @State private var searchText = ""
+    @State private var isSearchActive = false
+    @FocusState private var isSearchFieldFocused: Bool
     
     // Helper function to convert displayName to rawValue
     private func getCategoryRawValue(from displayName: String) -> String {
@@ -52,7 +56,7 @@ struct ContentView: View {
         return "otros" // fallback
     }
     
-    // Filter entries by selected home group, month/year, and category
+    // Filter entries by selected home group, month/year, category, and search
     var filteredEntries: [Entry] {
         guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
         
@@ -82,12 +86,44 @@ struct ContentView: View {
         }
         
         // Then filter by category
+        let categoryFilteredEntries: [Entry]
         if selectedCategory == "Todas" {
-            return dateFilteredEntries
+            categoryFilteredEntries = dateFilteredEntries
         } else {
             let categoryRawValue = getCategoryRawValue(from: selectedCategory)
-            return dateFilteredEntries.filter { entry in
+            categoryFilteredEntries = dateFilteredEntries.filter { entry in
                 entry.category == categoryRawValue
+            }
+        }
+        
+        // Finally filter by search text
+        if searchText.isEmpty {
+            return categoryFilteredEntries
+        } else {
+            // Clean search text: trim whitespace and convert to lowercase
+            let searchLower = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            
+            // If search text is empty after trimming, return all entries
+            if searchLower.isEmpty {
+                return categoryFilteredEntries
+            }
+            
+            return categoryFilteredEntries.filter { entry in
+                // Search in entry title
+                if entry.title.lowercased().contains(searchLower) {
+                    return true
+                }
+                
+                // Search in entry category
+                if entry.category.lowercased().contains(searchLower) {
+                    return true
+                }
+                
+                // Search in items associated with this entry
+                let items = allItems.filter { $0.entryId == entry.id }
+                return items.contains { item in
+                    item.itemDescription.lowercased().contains(searchLower)
+                }
             }
         }
     }
@@ -113,86 +149,166 @@ struct ContentView: View {
                 // Home Group and Month/Year Selector
                 if !homeGroups.isEmpty {
                     HStack {
-                        // Home Group Dropdown
-                        Menu {
-                            ForEach(homeGroups, id: \.id) { homeGroup in
-                                Button(action: {
-                                    selectedHomeGroupId = homeGroup.id
-                                }) {
-                                    HStack {
-                                        Text(homeGroup.name)
-                                        if selectedHomeGroupId == homeGroup.id {
-                                            Image(systemName: "checkmark")
+                        // Left side: Group and Filters
+                        HStack {
+                            // Home Group Dropdown
+                            Menu {
+                                ForEach(homeGroups, id: \.id) { homeGroup in
+                                    Button(action: {
+                                        selectedHomeGroupId = homeGroup.id
+                                    }) {
+                                        HStack {
+                                            Text(homeGroup.name)
+                                            if selectedHomeGroupId == homeGroup.id {
+                                                Image(systemName: "checkmark")
+                                            }
                                         }
                                     }
                                 }
+                            } label: {
+                                HStack {
+                                    Text(currentHomeGroup?.name ?? "Seleccionar Grupo")
+                                        .foregroundColor(.primary)
+                                    Image(systemName: "chevron.down")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
                             }
-                        } label: {
-                            HStack {
-                                Text(currentHomeGroup?.name ?? "Seleccionar Grupo")
-                                    .foregroundColor(.primary)
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(.gray)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                        }
-                        
-                        // Filters Button
-                        Button(action: {
-                                                    // Set temp values to current
-                        let calendar = Calendar.current
-                        tempSelectedMonth = calendar.component(.month, from: selectedMonthYear) - 1
-                        tempSelectedYear = calendar.component(.year, from: selectedMonthYear)
-                        tempShowAllMonths = showAllMonths
-                        tempSelectedCategory = selectedCategory
-                        
-                        showingFilters = true
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "line.3.horizontal.decrease.circle")
-                                    .foregroundColor(.primary)
+                            
+                            // Filters Button
+                            Button(action: {
+                                // Set temp values to current
+                                let calendar = Calendar.current
+                                tempSelectedMonth = calendar.component(.month, from: selectedMonthYear) - 1
+                                tempSelectedYear = calendar.component(.year, from: selectedMonthYear)
+                                tempShowAllMonths = showAllMonths
+                                tempSelectedCategory = selectedCategory
                                 
-                                // Show current filter indicator
-                                if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) || selectedCategory != "Todas" {
-                                    HStack(spacing: 4) {
-                                        if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
-                                            if showAllMonths {
-                                                Text(String(Calendar.current.component(.year, from: selectedMonthYear)))
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            } else {
-                                                Text(DateFormatter.monthYearFormatter.string(from: selectedMonthYear))
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                        }
-                                        
-                                        if selectedCategory != "Todas" {
+                                showingFilters = true
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "line.3.horizontal.decrease.circle")
+                                        .foregroundColor(.primary)
+                                    
+                                    // Show current filter indicator
+                                    if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) || selectedCategory != "Todas" {
+                                        HStack(spacing: 4) {
                                             if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
-                                                Text("•")
+                                                if showAllMonths {
+                                                    Text(String(Calendar.current.component(.year, from: selectedMonthYear)))
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                } else {
+                                                    Text(DateFormatter.monthYearFormatter.string(from: selectedMonthYear))
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
+                                            
+                                            if selectedCategory != "Todas" {
+                                                if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
+                                                    Text("•")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                                Text(selectedCategory)
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                             }
-                                            Text(selectedCategory)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
                                         }
                                     }
                                 }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
                         }
                         
                         Spacer()
+                        
+                        // Right side: Search Button
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isSearchActive.toggle()
+                                if !isSearchActive {
+                                    searchText = ""
+                                }
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
+                                    .foregroundColor(.primary)
+                                
+                                // Show search indicator if there's active search
+                                if !searchText.isEmpty {
+                                    Text("•")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(isSearchActive ? Color.red.opacity(0.1) : Color(.systemGray6))
+                            .cornerRadius(8)
+                        }
                     }
                     .padding(.horizontal)
                     .padding(.top, 4)
+                }
+                
+                // Search Field (when active)
+                if isSearchActive {
+                    HStack {
+                        HStack(spacing: 8) {
+                            TextField("Buscar en entries e items...", text: $searchText)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .font(.system(size: 15))
+                                .focused($isSearchFieldFocused)
+                            
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                        .font(.system(size: 14))
+                                }
+                            }
+                            
+                            Button(action: {
+                                // Focus on the text field when tapping the magnifying glass
+                                isSearchFieldFocused = true
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 14))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemGray6).opacity(0.6))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray4).opacity(0.3), lineWidth: 0.5)
+                        )
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .onAppear {
+                        // Auto-focus when search field appears
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isSearchFieldFocused = true
+                        }
+                    }
                 }
                 
                 // Total Spent Widget
@@ -290,40 +406,79 @@ struct ContentView: View {
                     }
                     .padding()
                 } else if filteredEntries.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "dollarsign.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.green)
-                        
-                        Text("OMO Money")
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(Color(.systemGray))
-                        
-                        Text("Comienza a registrar tus gastos e ingresos en este grupo")
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        Button(action: {
-                            prepareForNewEntry()
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Agregar Primer Entry")
+                    // Check if this is due to search or actually no entries
+                    let hasEntriesInGroup = entries.contains { $0.homeGroupId == selectedHomeGroupId }
+                    
+                    if hasEntriesInGroup && !searchText.isEmpty {
+                        // Search returned no results
+                        VStack(spacing: 20) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray)
+                            
+                            Text("No se encontraron resultados")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(Color(.systemGray))
+                            
+                            Text("No hay entries o items que coincidan con '\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))'")
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
+                            
+                            Button(action: {
+                                searchText = ""
+                                isSearchActive = false
+                            }) {
+                                HStack {
+                                    Image(systemName: "xmark.circle.fill")
+                                    Text("Limpiar Búsqueda")
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.gray)
+                                .cornerRadius(10)
                             }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.red)
-                            .cornerRadius(10)
                         }
+                        .padding()
+                    } else {
+                        // No entries in group
+                        VStack(spacing: 20) {
+                            Image(systemName: "dollarsign.circle.fill")
+                                .font(.system(size: 60))
+                                .foregroundColor(.green)
+                            
+                            Text("OMO Money")
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(Color(.systemGray))
+                            
+                            Text("Comienza a registrar tus gastos e ingresos en este grupo")
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
+                            
+                            Button(action: {
+                                prepareForNewEntry()
+                            }) {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Agregar Primer Entry")
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.red)
+                                .cornerRadius(10)
+                            }
+                        }
+                        .padding()
                     }
-                    .padding()
                 } else {
                     List {
                         ForEach(entriesByDate, id: \.sectionId) { (date, entriesForDate, sectionId) in
-                            Section(header: Text("\(date.formatted(date: .abbreviated, time: .omitted)) (\(entriesForDate.count))")) {
+                            Section(header: Text("\(date.formatted(date: .abbreviated, time: .omitted)) • \(entriesForDate.count)")) {
                                 ForEach(entriesForDate, id: \.id) { entry in
                                     ZStack {
                                         // Invisible background to capture all taps
@@ -339,9 +494,6 @@ struct ContentView: View {
                                     }
                                     .onTapGesture {
                                         selectedEntry = entry
-                                    }
-                                    .onLongPressGesture {
-                                        prepareForEditEntry(entry)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .listRowInsets(EdgeInsets())
@@ -1551,21 +1703,9 @@ struct CategoryManagementSheet: View {
                                 Text(categoryDisplayName(for: categoryStat.category))
                                     .font(.headline)
                                     .foregroundColor(.primary)
-                                Text("(\(categoryStat.entries.count))")
+                                Text("• \(categoryStat.entries.count)")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
-                                
-                                Spacer()
-                                
-                                // Show max amount for reference
-                                let currencySymbol = Currency(rawValue: categoryStat.currency)?.symbol ?? "$"
-                                Text("Máx: \(currencySymbol)\(String(format: "%.0f", maxSpentAmount))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color(.systemGray6))
-                                    .cornerRadius(4)
                             }
                             .padding(.vertical, 4)
                         ) {
@@ -1656,6 +1796,8 @@ struct HomeGroupManagementSheet: View {
     @State private var showingAddHomeGroup = false
     @State private var newHomeGroupName = ""
     @State private var newHomeGroupCurrency = Currency.usd.rawValue
+    @State private var showingDeleteAlert = false
+    @State private var groupsToDelete: [HomeGroup] = []
     
     var body: some View {
         NavigationView {
@@ -1734,20 +1876,34 @@ struct HomeGroupManagementSheet: View {
                                 
                                 Spacer()
                                 
-                                if selectedHomeGroupId == homeGroup.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
+                                HStack(spacing: 12) {
+                                    if selectedHomeGroupId == homeGroup.id {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                    }
+                                    
+                                    Button(action: {
+                                        groupsToDelete = [homeGroup]
+                                        showingDeleteAlert = true
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .foregroundColor(.red)
+                                            .font(.system(size: 16))
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
                             }
                             .padding(.vertical, 4)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                selectedHomeGroupId = homeGroup.id
+                                if selectedHomeGroupId == homeGroup.id {
+                                    // Si ya está seleccionado, cerrar el sheet
+                                    isPresented = false
+                                } else {
+                                    // Si no está seleccionado, seleccionarlo
+                                    selectedHomeGroupId = homeGroup.id
+                                }
                             }
-                        }
-                        .onDelete { offsets in
-                            let groupsToDelete = offsets.map { homeGroups[$0] }
-                            deleteHomeGroups(groupsToDelete)
                         }
                     }
                     .listStyle(PlainListStyle())
@@ -1763,6 +1919,17 @@ struct HomeGroupManagementSheet: View {
                     addHomeGroup()
                 }
             )
+        }
+        .alert("¿Estás seguro de eliminar \(groupsToDelete.first?.name ?? "este grupo")?", isPresented: $showingDeleteAlert) {
+            Button("Cancelar", role: .cancel) {
+                // No hacer nada, solo cerrar el alert
+            }
+            .foregroundColor(.gray)
+            
+            Button("Eliminar", role: .destructive) {
+                deleteHomeGroups(groupsToDelete)
+            }
+            .foregroundColor(.red)
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
@@ -2532,6 +2699,8 @@ struct AppPreviewRow: View {
         .cornerRadius(8)
     }
 }
+
+
 
 // Extension for stable date formatting
 extension DateFormatter {

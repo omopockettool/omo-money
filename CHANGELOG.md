@@ -5,6 +5,85 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-25
+
+### Added
+- **Advanced Search Functionality**:
+  - Integrated search field directly in main interface (no sheet)
+  - Real-time search across entries and items
+  - Search in entry titles, categories, and item descriptions
+  - Case-insensitive search with whitespace trimming
+  - Search button positioned on the right side of the interface
+  - Auto-focus and keyboard activation when search is activated
+- **Enhanced Group Management**:
+  - Confirmation alert when deleting home groups
+  - Custom alert with group name: "¿Estás seguro de eliminar [Group Name]?"
+  - Delete button in red, Cancel button in gray
+  - Tap selected group to close management sheet
+  - Improved visual feedback with trash icon button
+- **Improved Date Formatting**:
+  - Updated date headers in entry list with bullet separator
+  - Format: "15 Jul 2025 • 3" (date • count)
+  - Consistent bullet formatting across the app
+  - Better visual separation between date and entry count
+
+### Changed
+- **Search Implementation**:
+  - Replaced search sheet with integrated search field
+  - Search field appears/disappears with smooth animation
+  - Magnifying glass icon moves to right side of search field
+  - Search button changes to X when active with red background
+  - Auto-clear search when deactivating search mode
+- **Group Management UX**:
+  - Removed swipe-to-delete (caused visual glitches)
+  - Added dedicated trash button for each group
+  - Confirmation required before group deletion
+  - Double-tap selected group to confirm and close sheet
+- **Search Results Handling**:
+  - Different messages for "no search results" vs "no entries in group"
+  - Search results message: "No hay entries o items que coincidan con '[search term]'"
+  - Clear search button when no results found
+  - Maintains compatibility with existing filters
+
+### Technical
+- **Search Architecture**:
+  - `@State private var isSearchActive: Bool` for search field visibility
+  - `@FocusState private var isSearchFieldFocused: Bool` for keyboard control
+  - Enhanced `filteredEntries` computed property with search logic
+  - Whitespace trimming: `searchText.trimmingCharacters(in: .whitespacesAndNewlines)`
+  - Search across multiple fields: title, category, and item descriptions
+- **Group Management**:
+  - `@State private var showingDeleteAlert: Bool` for confirmation alerts
+  - `@State private var groupsToDelete: [HomeGroup]` for deletion tracking
+  - Custom alert implementation with dynamic group names
+  - Proper state management for group selection and deletion
+- **UI Improvements**:
+  - Smooth animations with `.easeInOut(duration: 0.3)`
+  - Transition effects: `.move(edge: .top).combined(with: .opacity)`
+  - Improved button styling with conditional backgrounds
+  - Better visual hierarchy and spacing
+
+### Features
+- **Smart Search**: Find entries and items instantly as you type
+- **Flexible Search**: Search across titles, categories, and item descriptions
+- **Safe Group Deletion**: Confirmation alerts prevent accidental deletions
+- **Improved Navigation**: Double-tap to confirm group selection
+- **Better Visual Feedback**: Clear indicators for active states
+
+### User Experience
+- **Intuitive Search**: Integrated search field with auto-focus
+- **Safe Operations**: Confirmation dialogs for destructive actions
+- **Visual Clarity**: Better date formatting and visual separators
+- **Responsive Interface**: Real-time search results and smooth animations
+- **Consistent Design**: Unified bullet formatting across the app
+
+### Search Capabilities
+- **Multi-field Search**: Search in entry titles, categories, and item descriptions
+- **Case-insensitive**: No distinction between uppercase and lowercase
+- **Whitespace Handling**: Automatic trimming of leading/trailing spaces
+- **Real-time Results**: Instant filtering as you type
+- **Filter Compatibility**: Works with existing date and category filters
+
 ## [1.2.0] - 2025-07-24
 
 ### Added
