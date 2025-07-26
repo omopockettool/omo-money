@@ -5,9 +5,40 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2025-07-25
+## [1.2.1] - 2025-07-26
 
 ### Added
+- **Optional Price for Items**:
+  - Items can now be created without specifying a price
+  - Price field is now optional in AddItemSheet
+  - Items without price display "Sin precio" instead of $0.00
+  - Improved UX for items that don't require pricing
+- **Enhanced Entry Listing Layout**:
+  - Fixed spacing issues between navigation bar and controls row
+  - Eliminated white space when search returns no results
+  - Consistent layout behavior with/without keyboard open
+  - Improved visual consistency across all app states
+  - Added Spacer() to maintain content alignment when no entries are listed
+
+### Changed
+- **Item Creation Flow**:
+  - Price field is now clearly marked as optional
+  - Better validation for items without prices
+  - Improved user feedback for optional pricing
+- **Layout Consistency**:
+  - VStack(spacing: 0) for main container to control spacing manually
+  - Consistent padding for controls row (8pt top/bottom)
+  - Fixed layout behavior when keyboard opens/closes
+  - Eliminated unwanted white space in various app states
+
+### Technical
+- **Layout Improvements**:
+  - Added Spacer() to VStack when no entries are listed
+  - Manual spacing control instead of automatic VStack spacing
+  - Consistent padding values across interface elements
+  - Fixed keyboard interaction with layout stability
+
+## [1.2.0] - 2025-07-25
 - **Advanced Search Functionality**:
   - Integrated search field directly in main interface (no sheet)
   - Real-time search across entries and items
