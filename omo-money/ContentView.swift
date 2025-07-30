@@ -145,7 +145,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 0) {
                 // Home Group and Month/Year Selector
                 if !homeGroups.isEmpty {
                     HStack {
@@ -174,7 +174,7 @@ struct ContentView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color(.systemGray6))
+                                .background(Color(.secondarySystemGroupedBackground))
                                 .cornerRadius(8)
                             }
                             
@@ -223,7 +223,7 @@ struct ContentView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color(.systemGray6))
+                                .background(Color(.secondarySystemGroupedBackground))
                                 .cornerRadius(8)
                             }
                         }
@@ -241,7 +241,7 @@ struct ContentView: View {
                         }) {
                             HStack(spacing: 4) {
                                 Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(isSearchActive ? .gray : .primary)
                                 
                                 // Show search indicator if there's active search
                                 if !searchText.isEmpty {
@@ -252,12 +252,13 @@ struct ContentView: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(isSearchActive ? Color.red.opacity(0.1) : Color(.systemGray6))
+                            .background(isSearchActive ? Color.gray.opacity(0.1) : Color(.secondarySystemGroupedBackground))
                             .cornerRadius(8)
                         }
                     }
                     .padding(.horizontal)
-                    .padding(.top, 4)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
                 }
                 
                 // Search Field (when active)
@@ -293,7 +294,7 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color(.systemGray6).opacity(0.6))
+                        .background(Color(.systemBackground))
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
@@ -301,7 +302,8 @@ struct ContentView: View {
                         )
                     }
                     .padding(.horizontal)
-                    .padding(.top, 4)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .onAppear {
                         // Auto-focus when search field appears
@@ -311,49 +313,49 @@ struct ContentView: View {
                     }
                 }
                 
-                // Total Spent Widget
+                // Total Spent Widget - Always show when there's a home group selected
                 if let currentHomeGroup = currentHomeGroup {
-                    let totalSpent = filteredEntries.reduce(0.0) { total, entry in
-                        let items = allItems.filter { $0.entryId == entry.id }
-                        let entryTotal = items.reduce(0.0) { $0 + $1.money }
-                        return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
-                    }
-                    let currencySymbol = Currency(rawValue: currentHomeGroup.currency)?.symbol ?? "$"
-                    
-                    HStack {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("Total Gastado")
-                                    .font(.headline)
+                        let totalSpent = filteredEntries.reduce(0.0) { total, entry in
+                            let items = allItems.filter { $0.entryId == entry.id }
+                            let entryTotal = items.reduce(0.0) { $0 + $1.money }
+                            return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
+                        }
+                        let currencySymbol = Currency(rawValue: currentHomeGroup.currency)?.symbol ?? "$"
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text("Total Gastado")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Text("\(String(format: "%.2f", totalSpent))\(currencySymbol)")
+                                    .font(.title)
+                                    .fontWeight(.bold)
                                     .foregroundColor(.primary)
                             }
                             
-                            Text("\(currencySymbol)\(String(format: "%.2f", totalSpent))")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.red)
+                            Spacer()
+                            
+                            // Quick action button
+                            Button(action: {
+                                prepareForNewEntry()
+                            }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.red)
+                            }
                         }
-                        
-                        Spacer()
-                        
-                        // Quick action button
-                        Button(action: {
-                            prepareForNewEntry()
-                        }) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.red)
-                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .padding(.bottom, 8)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    )
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                }
                 
                 if homeGroups.isEmpty {
                     // Show welcome screen for first time
@@ -409,71 +411,79 @@ struct ContentView: View {
                     // Check if this is due to search or actually no entries
                     let hasEntriesInGroup = entries.contains { $0.homeGroupId == selectedHomeGroupId }
                     
-                    if hasEntriesInGroup && !searchText.isEmpty {
-                        // Search returned no results
-                        VStack(spacing: 20) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray)
-                            
-                            Text("No se encontraron resultados")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(Color(.systemGray))
-                            
-                            Text("No hay entries o items que coincidan con '\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))'")
-                                .multilineTextAlignment(.center)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal)
-                            
-                            Button(action: {
-                                searchText = ""
-                                isSearchActive = false
-                            }) {
-                                HStack {
-                                    Image(systemName: "xmark.circle.fill")
-                                    Text("Limpiar Búsqueda")
+                    VStack {
+                        if hasEntriesInGroup && !searchText.isEmpty {
+                            // Search returned no results - Compact design
+                            VStack(spacing: 12) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray)
+                                
+                                Text("No se encontraron resultados")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(Color(.systemGray))
+                                
+                                Text("No hay entries o items que coincidan con '\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))'")
+                                    .font(.caption)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal)
+                                
+                                Button(action: {
+                                    searchText = ""
+                                    isSearchActive = false
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 14))
+                                        Text("Limpiar Búsqueda")
+                                            .font(.subheadline)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.gray)
+                                    .cornerRadius(8)
                                 }
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.gray)
-                                .cornerRadius(10)
                             }
-                        }
-                        .padding()
-                    } else {
-                        // No entries in group
-                        VStack(spacing: 20) {
-                            Image(systemName: "dollarsign.circle.fill")
-                                .font(.system(size: 60))
-                                .foregroundColor(.green)
-                            
-                            Text("OMO Money")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(Color(.systemGray))
-                            
-                            Text("Comienza a registrar tus gastos e ingresos en este grupo")
-                                .multilineTextAlignment(.center)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal)
-                            
-                            Button(action: {
-                                prepareForNewEntry()
-                            }) {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                    Text("Agregar Primer Entry")
+                            .padding(.horizontal)
+                            .padding(.vertical, 40)
+                        } else {
+                            // No entries in group
+                            VStack(spacing: 20) {
+                                Image(systemName: "dollarsign.circle.fill")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.green)
+                                
+                                Text("OMO Money")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(Color(.systemGray))
+                                
+                                Text("Comienza a registrar tus gastos e ingresos en este grupo")
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal)
+                                
+                                Button(action: {
+                                    prepareForNewEntry()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "plus.circle.fill")
+                                        Text("Agregar Primer Entry")
+                                    }
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .background(Color.red)
+                                    .cornerRadius(10)
                                 }
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.red)
-                                .cornerRadius(10)
                             }
+                            .padding()
                         }
-                        .padding()
+                        
+                        Spacer()
                     }
                 } else {
                     List {
@@ -497,7 +507,7 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .listRowInsets(EdgeInsets())
-                                    .listRowBackground(Color(.systemGray6))
+                                    .listRowBackground(Color(.secondarySystemGroupedBackground))
                                     .transition(.asymmetric(
                                         insertion: .move(edge: .leading).combined(with: .opacity),
                                         removal: .move(edge: .trailing).combined(with: .opacity)
@@ -511,8 +521,10 @@ struct ContentView: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: entriesByDate.map { $0.sectionId })
+                    .background(Color.clear)
                 }
             }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("OMO Money")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -740,10 +752,17 @@ struct EntryRowView: View {
                 // Get currency from home group
                 let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
                 let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
-                Text("\(currencySymbol)\(String(format: "%.2f", total))")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(color)
+                
+                if total > 0 {
+                    Text("\(currencySymbol)\(String(format: "%.2f", total))")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(color)
+                } else {
+                    Text("Sin precio")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             } else {
                 Text("Sin items")
                     .font(.caption)
@@ -779,6 +798,7 @@ struct AddEntrySheet: View {
     @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
     
     @State private var showDatePicker: Bool = false
+    @State private var dateSelected: Bool = false
     @FocusState private var focusedField: Field?
     
     // Computed property to check if the form is valid
@@ -857,6 +877,7 @@ struct AddEntrySheet: View {
                         Button(action: {
                             // Cerrar el teclado antes de mostrar el date picker
                             focusedField = nil
+                            dateSelected = false
                             showDatePicker.toggle()
                         }) {
                             HStack {
@@ -880,16 +901,33 @@ struct AddEntrySheet: View {
                         .buttonStyle(PlainButtonStyle())
                         
                         if showDatePicker {
-                            DatePicker("", selection: $entryDate, displayedComponents: .date)
-                                .datePickerStyle(.graphical)
-                                .labelsHidden()
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                                .onChange(of: entryDate) { _, _ in
-                                    // Close the date picker when a date is selected
-                                    showDatePicker = false
+                            VStack(spacing: 8) {
+                                DatePicker("", selection: $entryDate, displayedComponents: .date)
+                                    .datePickerStyle(.graphical)
+                                    .labelsHidden()
+                                    .onChange(of: entryDate) { _, _ in
+                                        // Mark that a date has been selected
+                                        dateSelected = true
+                                    }
+                                
+                                if dateSelected {
+                                    Button(action: {
+                                        showDatePicker = false
+                                        dateSelected = false
+                                    }) {
+                                        Text("Confirmar fecha")
+                                            .font(.subheadline)
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(Color.blue)
+                                            .cornerRadius(8)
+                                    }
                                 }
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                         }
                     }
                     .padding(.horizontal)
@@ -1089,7 +1127,9 @@ struct AddEntrySheet: View {
         .onAppear {
             // Set focus to description field only for new entries, not when editing
             if !isEditing {
-                focusedField = .title
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focusedField = .title
+                }
             }
         }
     }
@@ -1225,7 +1265,7 @@ struct EntryDetailView: View {
                     itemMoney: $itemMoney,
                     itemAmount: $itemAmount,
                     itemDescription: $itemDescription,
-                    isEditing: editingItem != nil,
+                    editingItem: $editingItem,
                     onSave: {
                         if let editingItem = editingItem {
                             updateItem(editingItem)
@@ -1234,6 +1274,9 @@ struct EntryDetailView: View {
                         }
                     }
                 )
+                .onDisappear {
+                    editingItem = nil
+                }
             }
             .sheet(isPresented: $showingEditEntry) {
                 AddEntrySheet(
@@ -1282,7 +1325,10 @@ struct EntryDetailView: View {
     }
     
     private func addItem() {
-        guard let money = Double(itemMoney), !itemDescription.isEmpty else { return }
+        guard !itemDescription.isEmpty else { return }
+        
+        // Use 0 as default money if empty or invalid
+        let money = Double(itemMoney) ?? 0.0
         
         // Use 1 as default amount if empty
         let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
@@ -1310,7 +1356,10 @@ struct EntryDetailView: View {
     }
     
     private func updateItem(_ item: Item) {
-        guard let money = Double(itemMoney), !itemDescription.isEmpty else { return }
+        guard !itemDescription.isEmpty else { return }
+        
+        // Use 0 as default money if empty or invalid
+        let money = Double(itemMoney) ?? 0.0
         
         // Use 1 as default amount if empty
         let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
@@ -1401,9 +1450,16 @@ struct ItemRowView: View {
             // Get currency from home group
             let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
             let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
-            Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
-                .font(.headline)
-                .foregroundColor(amountColor)
+            
+            if item.money > 0 {
+                Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
+                    .font(.headline)
+                    .foregroundColor(amountColor)
+            } else {
+                Text("Sin precio")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
@@ -1418,17 +1474,18 @@ struct AddItemSheet: View {
     @Binding var itemMoney: String
     @Binding var itemAmount: String
     @Binding var itemDescription: String
-    var isEditing: Bool = false
+    @Binding var editingItem: Item?
     var onSave: () -> Void
-    
     @FocusState private var focusedField: Field?
     
     private var isFormValid: Bool {
-        let moneyValid = !itemMoney.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let descriptionValid = !itemDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let moneyNumberValid = Double(itemMoney.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
         
-        return moneyValid && descriptionValid && moneyNumberValid
+        // Si hay precio, debe ser un número válido
+        let moneyValid = itemMoney.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || 
+                        Double(itemMoney.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
+        
+        return descriptionValid && moneyValid
     }
     
     enum Field {
@@ -1438,6 +1495,7 @@ struct AddItemSheet: View {
     }
     
     var body: some View {
+        let isEditing = editingItem != nil
         NavigationView {
             VStack(spacing: 20) {
                 // Description Section
@@ -1462,7 +1520,7 @@ struct AddItemSheet: View {
 
                 // Money Section
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Precio")
+                    Text("Precio (opcional)")
                         .font(.headline)
                         .foregroundColor(Color(.systemGray))
                     
@@ -1571,6 +1629,15 @@ struct AddItemSheet: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            if !isEditing {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focusedField = .description
+                }
+            } else {
+                focusedField = nil
+            }
+        }
     }
 }
 
@@ -1760,7 +1827,7 @@ struct CategoryManagementSheet: View {
                     let currencySymbol = Currency(rawValue: currentHomeGroup?.currency ?? "USD")?.symbol ?? "$"
                     
                     HStack {
-                        Text("Total gastado: \(currencySymbol)\(String(format: "%.0f", totalSpent))")
+                        Text("Total gastado: \(currencySymbol)\(String(format: "%.2f", totalSpent))")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
@@ -2314,12 +2381,12 @@ struct FiltersSheet: View {
             (4, "Mayo"), (5, "Junio"), (6, "Julio"), (7, "Agosto"),
             (8, "Septiembre"), (9, "Octubre"), (10, "Noviembre"), (11, "Diciembre")
         ]
-        return months
+        return months.reversed()
     }
     
     private func getYearOptions() -> [Int] {
         let currentYear = Calendar.current.component(.year, from: Date())
-        return Array(1970...currentYear).reversed()
+        return Array(2020...currentYear).reversed()
     }
     
     private func getCategoryOptions() -> [String] {
@@ -2580,7 +2647,7 @@ struct AppInfoSheet: View {
                             Text("Versión")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text("1.2.0")
+                            Text("1.2.1")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
