@@ -1,17 +1,39 @@
 # OMO Money
 
-A simple and intuitive money tracking app built with SwiftUI and SwiftData, designed to help users quickly record expenses and income for better financial control.
+A pocket tool designed to help you manage your personal expenses in a simple and efficient way. Organize your expenses by groups, categories, and dates to have total control over your finances.
 
-## 💰 Features
+**Current version: 1.2.1**
 
-- **Quick Expense Tracking**: Record expenses with amount, description, and category
-- **Income Management**: Track income sources and amounts
-- **Category System**: Organize transactions with custom categories
-- **Date Tracking**: Keep track of when each transaction occurred
-- **Clean Interface**: Modern, intuitive design optimized for iOS
-- **Data Persistence**: Secure local storage using SwiftData
-- **Edit & Delete**: Full CRUD operations for transaction management
-- **Transaction History**: View all your financial activity in chronological order
+## 💰 Main Features
+
+### 📊 Group Management
+- **Multiple expense groups**: Organize your finances by different contexts (personal, work, home, etc.)
+- **Custom currencies**: Support for USD and EUR with automatic symbols
+- **Safe management**: Confirmation before deleting groups
+
+### 🔍 Advanced Search
+- **Real-time search**: Find entries and items instantly
+- **Multi-field search**: Search in titles, categories, and item descriptions
+- **Smart filters**: Combine search with date and category filters
+- **Integrated interface**: Search field directly in the main interface
+
+### 📝 Entries and Items
+- **Entries**: Organize your expenses in entries with title, date, and category
+- **Optional items**: Add detailed items to each entry (optional pricing)
+- **Predefined categories**: Food, Home, Health, Entertainment, Transport, Others
+- **Transaction types**: Expenses (red) and income (green)
+
+### 📅 Filters and Organization
+- **Date filters**: Specific month or all months of the year
+- **Category filters**: Filter by specific category or all
+- **Date grouping**: Entries organized chronologically
+- **Category statistics**: Visualization of expenses by category
+
+### 🎨 Modern Interface
+- **Clean design**: Intuitive and easy-to-use interface
+- **Smooth animations**: Fluid transitions between states
+- **Consistent layout**: Uniform spacing in all states
+- **Responsive**: Adaptable to different screen sizes
 
 ## 📱 Screenshots
 
@@ -55,8 +77,9 @@ open "omo-money.xcodeproj"
 OMO Money/
 ├── omo-money/
 │   ├── ContentView.swift          # Main app interface
-│   ├── omo_moneyApp.swift         # App entry point
-│   ├── Item.swift                 # Transaction data model
+│   ├── OmoMoneyApp.swift          # App entry point
+│   ├── Entry.swift                # Data models (HomeGroup, Entry, Item)
+│   ├── omo-money.entitlements     # Permissions configuration
 │   └── Assets.xcassets/           # App assets
 ├── omo-moneyTests/
 │   └── omo_moneyTests.swift       # Unit tests
@@ -65,15 +88,33 @@ OMO Money/
 
 ## 🗄️ Data Model
 
-The app uses SwiftData for local data persistence with a simple transaction model:
+The app uses SwiftData for local persistence with a hierarchical model:
 
-### Transaction Entity (Item)
+### HomeGroup
 - `id`: Unique identifier (UUID)
-- `timestamp`: Date and time of the transaction
-- `amount`: Transaction amount (positive for income, negative for expenses)
-- `description`: Description of the transaction
-- `category`: Transaction category (food, transport, entertainment, etc.)
-- `type`: Transaction type (income or expense)
+- `name`: Group name
+- `currency`: Currency code (USD, EUR)
+- `createdAt`: Creation date
+- `entries`: Relationship with entries (cascade deletion)
+
+### Entry
+- `id`: Unique identifier (UUID)
+- `title`: Entry title
+- `date`: Entry date
+- `category`: Category (food, home, health, etc.)
+- `type`: Type (false = expense, true = income)
+- `homeGroupId`: ID of the group it belongs to
+
+### Item
+- `id`: Unique identifier (UUID)
+- `money`: Amount (optional, can be 0)
+- `amount`: Item quantity (optional)
+- `itemDescription`: Item description
+- `entryId`: ID of the entry it belongs to
+
+### Support Enums
+- **EntryCategory**: Predefined categories with display names
+- **Currency**: Supported currencies with symbols
 
 ## 🧪 Testing
 
@@ -102,43 +143,45 @@ xcodebuild archive -scheme "omo-money" -archivePath build/omo-money.xcarchive
 ## 🔧 Configuration
 
 ### SwiftData Model
-The app uses SwiftData for local data persistence with a transaction model:
-- `Item`: Core transaction data with amount, description, and category
+The app uses SwiftData for local persistence with a hierarchical model:
+- `HomeGroup`: Expense groups with currency
+- `Entry`: Main entries with category and type
+- `Item`: Detailed items with optional pricing
 
 ### Bundle Identifier
 - **Bundle ID**: `com.omo.OMO-Money`
 - **Team**: Configured for Apple Developer distribution
 
 ### Color Scheme
-- **Primary**: Green (#34D399) for financial theme
-- **Expense Colors**: Red tones for expenses
-- **Income Colors**: Green tones for income
+- **Primary**: Red (#FF3B30) for expenses
+- **Secondary**: Green (#34C759) for income
+- **Categories**: Specific colors per category
 - **Text**: System colors for readability
 - **Background**: System background colors
 
 ## 📈 Roadmap
 
-### Version 0.1.0 (Current)
-- [x] Basic transaction recording
-- [x] Income and expense tracking
-- [x] Category system
-- [x] Date tracking
-- [x] Clean interface
+### Version 1.2.1 (Current)
+- [x] Optional pricing for items
+- [x] Improved entry listing layout
+- [x] Integrated advanced search
+- [x] Group management with confirmation
+- [x] Date and category filters
+- [x] Category statistics
 
-### Version 0.2.0 (Next Release)
-- [ ] Transaction statistics and analytics
-- [ ] Budget setting and tracking
-- [ ] Export functionality
-- [ ] Custom categories
-- [ ] Search and filtering
+### Version 1.3.0 (Next)
+- [ ] Data export
+- [ ] Notifications and reminders
+- [ ] Recurring transactions
+- [ ] Financial goals
+- [ ] Cloud synchronization
 
 ### Future Features
-- [ ] Cloud sync
-- [ ] Recurring transactions
-- [ ] Financial goals tracking
-- [ ] Notifications and reminders
 - [ ] Multiple currency support
 - [ ] Receipt photo attachment
+- [ ] Advanced analytics and charts
+- [ ] Category budgets
+- [ ] Bank integration
 
 ## 🤝 Contributing
 
@@ -180,4 +223,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**OMO Money** - Take control of your finances with simplicity 💰 
+**OMO Money** - Do it your way with OMO 💰 

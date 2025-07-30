@@ -36,6 +36,11 @@ struct ContentView: View {
     @State private var tempSelectedYear = Calendar.current.component(.year, from: Date())
     @State private var tempShowAllMonths = false // For "All months" option
     @State private var tempSelectedCategory = "Todas" // For category filter
+    @State private var showingAppInfo = false
+    @State private var showingSearch = false
+    @State private var searchText = ""
+    @State private var isSearchActive = false
+    @FocusState private var isSearchFieldFocused: Bool
     
     // Helper function to convert displayName to rawValue
     private func getCategoryRawValue(from displayName: String) -> String {
@@ -51,7 +56,7 @@ struct ContentView: View {
         return "otros" // fallback
     }
     
-    // Filter entries by selected home group, month/year, and category
+    // Filter entries by selected home group, month/year, category, and search
     var filteredEntries: [Entry] {
         guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
         
@@ -81,12 +86,44 @@ struct ContentView: View {
         }
         
         // Then filter by category
+        let categoryFilteredEntries: [Entry]
         if selectedCategory == "Todas" {
-            return dateFilteredEntries
+            categoryFilteredEntries = dateFilteredEntries
         } else {
             let categoryRawValue = getCategoryRawValue(from: selectedCategory)
-            return dateFilteredEntries.filter { entry in
+            categoryFilteredEntries = dateFilteredEntries.filter { entry in
                 entry.category == categoryRawValue
+            }
+        }
+        
+        // Finally filter by search text
+        if searchText.isEmpty {
+            return categoryFilteredEntries
+        } else {
+            // Clean search text: trim whitespace and convert to lowercase
+            let searchLower = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            
+            // If search text is empty after trimming, return all entries
+            if searchLower.isEmpty {
+                return categoryFilteredEntries
+            }
+            
+            return categoryFilteredEntries.filter { entry in
+                // Search in entry title
+                if entry.title.lowercased().contains(searchLower) {
+                    return true
+                }
+                
+                // Search in entry category
+                if entry.category.lowercased().contains(searchLower) {
+                    return true
+                }
+                
+                // Search in items associated with this entry
+                let items = allItems.filter { $0.entryId == entry.id }
+                return items.contains { item in
+                    item.itemDescription.lowercased().contains(searchLower)
+                }
             }
         }
     }
@@ -108,135 +145,217 @@ struct ContentView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 0) {
                 // Home Group and Month/Year Selector
                 if !homeGroups.isEmpty {
                     HStack {
-                        // Home Group Dropdown
-                        Menu {
-                            ForEach(homeGroups, id: \.id) { homeGroup in
-                                Button(action: {
-                                    selectedHomeGroupId = homeGroup.id
-                                }) {
-                                    HStack {
-                                        Text(homeGroup.name)
-                                        if selectedHomeGroupId == homeGroup.id {
-                                            Image(systemName: "checkmark")
+                        // Left side: Group and Filters
+                        HStack {
+                            // Home Group Dropdown
+                            Menu {
+                                ForEach(homeGroups, id: \.id) { homeGroup in
+                                    Button(action: {
+                                        selectedHomeGroupId = homeGroup.id
+                                    }) {
+                                        HStack {
+                                            Text(homeGroup.name)
+                                            if selectedHomeGroupId == homeGroup.id {
+                                                Image(systemName: "checkmark")
+                                            }
                                         }
                                     }
                                 }
+                            } label: {
+                                HStack {
+                                    Text(currentHomeGroup?.name ?? "Seleccionar Grupo")
+                                        .foregroundColor(.primary)
+                                    Image(systemName: "chevron.down")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.secondarySystemGroupedBackground))
+                                .cornerRadius(8)
                             }
-                        } label: {
-                            HStack {
-                                Text(currentHomeGroup?.name ?? "Seleccionar Grupo")
-                                    .foregroundColor(.primary)
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(.gray)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                        }
-                        
-                        // Filters Button
-                        Button(action: {
-                                                    // Set temp values to current
-                        let calendar = Calendar.current
-                        tempSelectedMonth = calendar.component(.month, from: selectedMonthYear) - 1
-                        tempSelectedYear = calendar.component(.year, from: selectedMonthYear)
-                        tempShowAllMonths = showAllMonths
-                        tempSelectedCategory = selectedCategory
-                        
-                        showingFilters = true
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "line.3.horizontal.decrease.circle")
-                                    .foregroundColor(.primary)
+                            
+                            // Filters Button
+                            Button(action: {
+                                // Set temp values to current
+                                let calendar = Calendar.current
+                                tempSelectedMonth = calendar.component(.month, from: selectedMonthYear) - 1
+                                tempSelectedYear = calendar.component(.year, from: selectedMonthYear)
+                                tempShowAllMonths = showAllMonths
+                                tempSelectedCategory = selectedCategory
                                 
-                                // Show current filter indicator
-                                if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) || selectedCategory != "Todas" {
-                                    HStack(spacing: 4) {
-                                        if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
-                                            if showAllMonths {
-                                                Text(String(Calendar.current.component(.year, from: selectedMonthYear)))
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            } else {
-                                                Text(DateFormatter.monthYearFormatter.string(from: selectedMonthYear))
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                        }
-                                        
-                                        if selectedCategory != "Todas" {
+                                showingFilters = true
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "line.3.horizontal.decrease.circle")
+                                        .foregroundColor(.primary)
+                                    
+                                    // Show current filter indicator
+                                    if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) || selectedCategory != "Todas" {
+                                        HStack(spacing: 4) {
                                             if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
-                                                Text("•")
+                                                if showAllMonths {
+                                                    Text(String(Calendar.current.component(.year, from: selectedMonthYear)))
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                } else {
+                                                    Text(DateFormatter.monthYearFormatter.string(from: selectedMonthYear))
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
+                                            
+                                            if selectedCategory != "Todas" {
+                                                if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
+                                                    Text("•")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                                Text(selectedCategory)
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                             }
-                                            Text(selectedCategory)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
                                         }
                                     }
                                 }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.secondarySystemGroupedBackground))
+                                .cornerRadius(8)
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
                         }
                         
                         Spacer()
+                        
+                        // Right side: Search Button
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isSearchActive.toggle()
+                                if !isSearchActive {
+                                    searchText = ""
+                                }
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
+                                    .foregroundColor(isSearchActive ? .gray : .primary)
+                                
+                                // Show search indicator if there's active search
+                                if !searchText.isEmpty {
+                                    Text("•")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(isSearchActive ? Color.gray.opacity(0.1) : Color(.secondarySystemGroupedBackground))
+                            .cornerRadius(8)
+                        }
                     }
                     .padding(.horizontal)
-                    .padding(.top, 4)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
                 }
                 
-                // Total Spent Widget
-                if let currentHomeGroup = currentHomeGroup {
-                    let totalSpent = filteredEntries.reduce(0.0) { total, entry in
-                        let items = allItems.filter { $0.entryId == entry.id }
-                        let entryTotal = items.reduce(0.0) { $0 + $1.money }
-                        return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
-                    }
-                    let currencySymbol = Currency(rawValue: currentHomeGroup.currency)?.symbol ?? "$"
-                    
+                // Search Field (when active)
+                if isSearchActive {
                     HStack {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("Total Gastado")
-                                    .font(.headline)
+                        HStack(spacing: 8) {
+                            TextField("Buscar en entries e items...", text: $searchText)
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .font(.system(size: 15))
+                                .focused($isSearchFieldFocused)
+                            
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                        .font(.system(size: 14))
+                                }
+                            }
+                            
+                            Button(action: {
+                                // Focus on the text field when tapping the magnifying glass
+                                isSearchFieldFocused = true
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 14))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray4).opacity(0.3), lineWidth: 0.5)
+                        )
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .onAppear {
+                        // Auto-focus when search field appears
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isSearchFieldFocused = true
+                        }
+                    }
+                }
+                
+                // Total Spent Widget - Always show when there's a home group selected
+                if let currentHomeGroup = currentHomeGroup {
+                        let totalSpent = filteredEntries.reduce(0.0) { total, entry in
+                            let items = allItems.filter { $0.entryId == entry.id }
+                            let entryTotal = items.reduce(0.0) { $0 + $1.money }
+                            return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
+                        }
+                        let currencySymbol = Currency(rawValue: currentHomeGroup.currency)?.symbol ?? "$"
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text("Total Gastado")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Text("\(String(format: "%.2f", totalSpent))\(currencySymbol)")
+                                    .font(.title)
+                                    .fontWeight(.bold)
                                     .foregroundColor(.primary)
                             }
                             
-                            Text("\(currencySymbol)\(String(format: "%.2f", totalSpent))")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.red)
+                            Spacer()
+                            
+                            // Quick action button
+                            Button(action: {
+                                prepareForNewEntry()
+                            }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.red)
+                            }
                         }
-                        
-                        Spacer()
-                        
-                        // Quick action button
-                        Button(action: {
-                            prepareForNewEntry()
-                        }) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.red)
-                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .padding(.bottom, 8)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    )
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                }
                 
                 if homeGroups.isEmpty {
                     // Show welcome screen for first time
@@ -289,40 +408,87 @@ struct ContentView: View {
                     }
                     .padding()
                 } else if filteredEntries.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "dollarsign.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.green)
-                        
-                        Text("OMO Money")
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(Color(.systemGray))
-                        
-                        Text("Comienza a registrar tus gastos e ingresos en este grupo")
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        Button(action: {
-                            prepareForNewEntry()
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Agregar Primer Entry")
+                    // Check if this is due to search or actually no entries
+                    let hasEntriesInGroup = entries.contains { $0.homeGroupId == selectedHomeGroupId }
+                    
+                    VStack {
+                        if hasEntriesInGroup && !searchText.isEmpty {
+                            // Search returned no results - Compact design
+                            VStack(spacing: 12) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray)
+                                
+                                Text("No se encontraron resultados")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(Color(.systemGray))
+                                
+                                Text("No hay entries o items que coincidan con '\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))'")
+                                    .font(.caption)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal)
+                                
+                                Button(action: {
+                                    searchText = ""
+                                    isSearchActive = false
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 14))
+                                        Text("Limpiar Búsqueda")
+                                            .font(.subheadline)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.gray)
+                                    .cornerRadius(8)
+                                }
                             }
-                            .font(.headline)
-                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                            .padding(.vertical, 40)
+                        } else {
+                            // No entries in group
+                            VStack(spacing: 20) {
+                                Image(systemName: "dollarsign.circle.fill")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.green)
+                                
+                                Text("OMO Money")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(Color(.systemGray))
+                                
+                                Text("Comienza a registrar tus gastos e ingresos en este grupo")
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal)
+                                
+                                Button(action: {
+                                    prepareForNewEntry()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "plus.circle.fill")
+                                        Text("Agregar Primer Entry")
+                                    }
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .background(Color.red)
+                                    .cornerRadius(10)
+                                }
+                            }
                             .padding()
-                            .background(Color.red)
-                            .cornerRadius(10)
                         }
+                        
+                        Spacer()
                     }
-                    .padding()
                 } else {
                     List {
                         ForEach(entriesByDate, id: \.sectionId) { (date, entriesForDate, sectionId) in
-                            Section(header: Text("\(date.formatted(date: .abbreviated, time: .omitted)) (\(entriesForDate.count))")) {
+                            Section(header: Text("\(date.formatted(date: .abbreviated, time: .omitted)) • \(entriesForDate.count)")) {
                                 ForEach(entriesForDate, id: \.id) { entry in
                                     ZStack {
                                         // Invisible background to capture all taps
@@ -339,12 +505,9 @@ struct ContentView: View {
                                     .onTapGesture {
                                         selectedEntry = entry
                                     }
-                                    .onLongPressGesture {
-                                        prepareForEditEntry(entry)
-                                    }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .listRowInsets(EdgeInsets())
-                                    .listRowBackground(Color(.systemGray6))
+                                    .listRowBackground(Color(.secondarySystemGroupedBackground))
                                     .transition(.asymmetric(
                                         insertion: .move(edge: .leading).combined(with: .opacity),
                                         removal: .move(edge: .trailing).combined(with: .opacity)
@@ -358,11 +521,23 @@ struct ContentView: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: entriesByDate.map { $0.sectionId })
+                    .background(Color.clear)
                 }
             }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("OMO Money")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Info button
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showingAppInfo = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.gray)
+                    }
+                }
+                
                 // Category Management button
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
@@ -431,6 +606,9 @@ struct ContentView: View {
             }
             .sheet(item: $selectedEntry) { entry in
                 EntryDetailView(entry: entry)
+            }
+            .sheet(isPresented: $showingAppInfo) {
+                AppInfoSheet(isPresented: $showingAppInfo)
             }
             .onAppear {
                 // Auto-select the first home group if none is selected
@@ -574,10 +752,17 @@ struct EntryRowView: View {
                 // Get currency from home group
                 let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
                 let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
-                Text("\(currencySymbol)\(String(format: "%.2f", total))")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(color)
+                
+                if total > 0 {
+                    Text("\(currencySymbol)\(String(format: "%.2f", total))")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(color)
+                } else {
+                    Text("Sin precio")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             } else {
                 Text("Sin items")
                     .font(.caption)
@@ -613,6 +798,7 @@ struct AddEntrySheet: View {
     @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
     
     @State private var showDatePicker: Bool = false
+    @State private var dateSelected: Bool = false
     @FocusState private var focusedField: Field?
     
     // Computed property to check if the form is valid
@@ -650,27 +836,34 @@ struct AddEntrySheet: View {
                     // Money Section (only show for new entries, not editing)
                     if !isEditing {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Monto (opcional)")
+                            Text("Precio (opcional)")
                                 .font(.headline)
                                 .foregroundColor(Color(.systemGray))
                             
-                            TextField("0.00", text: $entryMoney)
-                                .padding(8)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(.systemGray4), lineWidth: 1)
-                                )
-                                .keyboardType(.decimalPad)
-                                .focused($focusedField, equals: .money)
-                                .onChange(of: entryMoney) { _, newValue in
-                                    // Convertir coma a punto para decimales
-                                    let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
-                                    if convertedValue != newValue {
-                                        entryMoney = convertedValue
-                                    }
+                                                    TextField("0.00", text: $entryMoney)
+                            .padding(8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                            )
+                            .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .money)
+                            .onChange(of: entryMoney) { _, newValue in
+                                // Convertir coma a punto para decimales
+                                let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
+                                if convertedValue != newValue {
+                                    entryMoney = convertedValue
+                                    return
                                 }
+                                
+                                // Validar formato de dinero
+                                let validatedValue = validateMoneyInput(convertedValue)
+                                if validatedValue != convertedValue {
+                                    entryMoney = validatedValue
+                                }
+                            }
                         }
                         .padding(.horizontal)
                     }
@@ -682,6 +875,9 @@ struct AddEntrySheet: View {
                             .foregroundColor(Color(.systemGray))
                         
                         Button(action: {
+                            // Cerrar el teclado antes de mostrar el date picker
+                            focusedField = nil
+                            dateSelected = false
                             showDatePicker.toggle()
                         }) {
                             HStack {
@@ -705,12 +901,33 @@ struct AddEntrySheet: View {
                         .buttonStyle(PlainButtonStyle())
                         
                         if showDatePicker {
-                            DatePicker("", selection: $entryDate, displayedComponents: .date)
-                                .datePickerStyle(.graphical)
-                                .labelsHidden()
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
+                            VStack(spacing: 8) {
+                                DatePicker("", selection: $entryDate, displayedComponents: .date)
+                                    .datePickerStyle(.graphical)
+                                    .labelsHidden()
+                                    .onChange(of: entryDate) { _, _ in
+                                        // Mark that a date has been selected
+                                        dateSelected = true
+                                    }
+                                
+                                if dateSelected {
+                                    Button(action: {
+                                        showDatePicker = false
+                                        dateSelected = false
+                                    }) {
+                                        Text("Confirmar fecha")
+                                            .font(.subheadline)
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(Color.blue)
+                                            .cornerRadius(8)
+                                    }
+                                }
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                         }
                     }
                     .padding(.horizontal)
@@ -871,10 +1088,50 @@ struct AddEntrySheet: View {
                     .foregroundColor(.red)
                     .disabled(!isFormValid)
                 }
+                
+                                ToolbarItemGroup(placement: .keyboard) {
+                    // Only show navigation arrows for new entries (not editing)
+                    if !isEditing {
+                        Button(action: {
+                            if focusedField == .money {
+                                focusedField = .title
+                            }
+                        }) {
+                            Image(systemName: "chevron.up")
+                        }
+                        .foregroundColor(.red)
+                        .disabled(focusedField == .title)
+                        
+                        Button(action: {
+                            if focusedField == .title {
+                                focusedField = .money
+                            }
+                        }) {
+                            Image(systemName: "chevron.down")
+                        }
+                        .foregroundColor(.red)
+                        .disabled(focusedField == .money)
+                    }
+ 
+                    Spacer()
+                    
+                    Button("Done") {
+                        focusedField = nil
+                    }
+                    .foregroundColor(.red)
+                }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            // Set focus to description field only for new entries, not when editing
+            if !isEditing {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focusedField = .title
+                }
+            }
+        }
     }
     
     private func categoryColor(_ category: String) -> Color {
@@ -1008,7 +1265,7 @@ struct EntryDetailView: View {
                     itemMoney: $itemMoney,
                     itemAmount: $itemAmount,
                     itemDescription: $itemDescription,
-                    isEditing: editingItem != nil,
+                    editingItem: $editingItem,
                     onSave: {
                         if let editingItem = editingItem {
                             updateItem(editingItem)
@@ -1017,6 +1274,9 @@ struct EntryDetailView: View {
                         }
                     }
                 )
+                .onDisappear {
+                    editingItem = nil
+                }
             }
             .sheet(isPresented: $showingEditEntry) {
                 AddEntrySheet(
@@ -1040,7 +1300,7 @@ struct EntryDetailView: View {
     
     private func prepareForNewItem() {
         itemMoney = ""
-        itemAmount = ""
+        itemAmount = "1"
         itemDescription = ""
         editingItem = nil
         showingAddItem = true
@@ -1065,12 +1325,18 @@ struct EntryDetailView: View {
     }
     
     private func addItem() {
-        guard let money = Double(itemMoney), !itemDescription.isEmpty else { return }
+        guard !itemDescription.isEmpty else { return }
+        
+        // Use 0 as default money if empty or invalid
+        let money = Double(itemMoney) ?? 0.0
+        
+        // Use 1 as default amount if empty
+        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
         
         withAnimation {
             let newItem = Item(
                 money: money,
-                amount: Int(itemAmount),
+                amount: amount,
                 itemDescription: itemDescription,
                 entryId: entry.id
             )
@@ -1090,11 +1356,17 @@ struct EntryDetailView: View {
     }
     
     private func updateItem(_ item: Item) {
-        guard let money = Double(itemMoney), !itemDescription.isEmpty else { return }
+        guard !itemDescription.isEmpty else { return }
+        
+        // Use 0 as default money if empty or invalid
+        let money = Double(itemMoney) ?? 0.0
+        
+        // Use 1 as default amount if empty
+        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
         
         withAnimation {
             item.money = money
-            item.amount = Int(itemAmount)
+            item.amount = amount
             item.itemDescription = itemDescription
             
             do {
@@ -1178,9 +1450,16 @@ struct ItemRowView: View {
             // Get currency from home group
             let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
             let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
-            Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
-                .font(.headline)
-                .foregroundColor(amountColor)
+            
+            if item.money > 0 {
+                Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
+                    .font(.headline)
+                    .foregroundColor(amountColor)
+            } else {
+                Text("Sin precio")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
@@ -1195,17 +1474,18 @@ struct AddItemSheet: View {
     @Binding var itemMoney: String
     @Binding var itemAmount: String
     @Binding var itemDescription: String
-    var isEditing: Bool = false
+    @Binding var editingItem: Item?
     var onSave: () -> Void
-    
     @FocusState private var focusedField: Field?
     
     private var isFormValid: Bool {
-        let moneyValid = !itemMoney.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let descriptionValid = !itemDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let moneyNumberValid = Double(itemMoney.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
         
-        return moneyValid && descriptionValid && moneyNumberValid
+        // Si hay precio, debe ser un número válido
+        let moneyValid = itemMoney.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || 
+                        Double(itemMoney.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
+        
+        return descriptionValid && moneyValid
     }
     
     enum Field {
@@ -1215,11 +1495,32 @@ struct AddItemSheet: View {
     }
     
     var body: some View {
+        let isEditing = editingItem != nil
         NavigationView {
             VStack(spacing: 20) {
+                // Description Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Descripción")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    TextField("Detallar cada producto tiene sus ventajas...", text: $itemDescription)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                        .focused($focusedField, equals: .description)
+                        .onChange(of: itemDescription) { _, newValue in
+                        }
+                }
+                .padding(.horizontal)
+
                 // Money Section
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Precio")
+                    Text("Precio (opcional)")
                         .font(.headline)
                         .foregroundColor(Color(.systemGray))
                     
@@ -1238,6 +1539,13 @@ struct AddItemSheet: View {
                             let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
                             if convertedValue != newValue {
                                 itemMoney = convertedValue
+                                return
+                            }
+                            
+                            // Validar formato de dinero
+                            let validatedValue = validateMoneyInput(convertedValue)
+                            if validatedValue != convertedValue {
+                                itemMoney = validatedValue
                             }
                         }
                 }
@@ -1262,26 +1570,6 @@ struct AddItemSheet: View {
                 }
                 .padding(.horizontal)
                 
-                // Description Section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Descripción")
-                        .font(.headline)
-                        .foregroundColor(Color(.systemGray))
-                    
-                    TextField("Ej: Leche", text: $itemDescription)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.systemGray4), lineWidth: 1)
-                        )
-                        .focused($focusedField, equals: .description)
-                        .onChange(of: itemDescription) { _, newValue in
-                        }
-                }
-                .padding(.horizontal)
-                
                 Spacer()
             }
             .padding(.vertical)
@@ -1303,10 +1591,53 @@ struct AddItemSheet: View {
                     .foregroundColor(.red)
                     .disabled(!isFormValid)
                 }
+                
+                ToolbarItemGroup(placement: .keyboard) {
+                    
+                    Button(action: {
+                        if focusedField == .amount {
+                            focusedField = .money
+                        } else if focusedField == .money {
+                            focusedField = .description
+                        }
+                    }) {
+                        Image(systemName: "chevron.up")
+                    }
+                    .foregroundColor(.red)
+                    .disabled(focusedField == .description)
+                    
+                    Button(action: {
+                        if focusedField == .description {
+                            focusedField = .money
+                        } else if focusedField == .money {
+                            focusedField = .amount
+                        }
+                    }) {
+                        Image(systemName: "chevron.down")
+                    }
+                    .foregroundColor(.red)
+                    .disabled(focusedField == .amount)
+                    
+                    Spacer()
+                    
+                    Button("Done") {
+                        focusedField = nil
+                    }
+                    .foregroundColor(.red)
+                }
             }
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            if !isEditing {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focusedField = .description
+                }
+            } else {
+                focusedField = nil
+            }
+        }
     }
 }
 
@@ -1439,21 +1770,9 @@ struct CategoryManagementSheet: View {
                                 Text(categoryDisplayName(for: categoryStat.category))
                                     .font(.headline)
                                     .foregroundColor(.primary)
-                                Text("(\(categoryStat.entries.count))")
+                                Text("• \(categoryStat.entries.count)")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
-                                
-                                Spacer()
-                                
-                                // Show max amount for reference
-                                let currencySymbol = Currency(rawValue: categoryStat.currency)?.symbol ?? "$"
-                                Text("Máx: \(currencySymbol)\(String(format: "%.0f", maxSpentAmount))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color(.systemGray6))
-                                    .cornerRadius(4)
                             }
                             .padding(.vertical, 4)
                         ) {
@@ -1508,7 +1827,7 @@ struct CategoryManagementSheet: View {
                     let currencySymbol = Currency(rawValue: currentHomeGroup?.currency ?? "USD")?.symbol ?? "$"
                     
                     HStack {
-                        Text("Total gastado: \(currencySymbol)\(String(format: "%.0f", totalSpent))")
+                        Text("Total gastado: \(currencySymbol)\(String(format: "%.2f", totalSpent))")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
@@ -1544,6 +1863,8 @@ struct HomeGroupManagementSheet: View {
     @State private var showingAddHomeGroup = false
     @State private var newHomeGroupName = ""
     @State private var newHomeGroupCurrency = Currency.usd.rawValue
+    @State private var showingDeleteAlert = false
+    @State private var groupsToDelete: [HomeGroup] = []
     
     var body: some View {
         NavigationView {
@@ -1622,20 +1943,34 @@ struct HomeGroupManagementSheet: View {
                                 
                                 Spacer()
                                 
-                                if selectedHomeGroupId == homeGroup.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
+                                HStack(spacing: 12) {
+                                    if selectedHomeGroupId == homeGroup.id {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                    }
+                                    
+                                    Button(action: {
+                                        groupsToDelete = [homeGroup]
+                                        showingDeleteAlert = true
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .foregroundColor(.red)
+                                            .font(.system(size: 16))
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
                             }
                             .padding(.vertical, 4)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                selectedHomeGroupId = homeGroup.id
+                                if selectedHomeGroupId == homeGroup.id {
+                                    // Si ya está seleccionado, cerrar el sheet
+                                    isPresented = false
+                                } else {
+                                    // Si no está seleccionado, seleccionarlo
+                                    selectedHomeGroupId = homeGroup.id
+                                }
                             }
-                        }
-                        .onDelete { offsets in
-                            let groupsToDelete = offsets.map { homeGroups[$0] }
-                            deleteHomeGroups(groupsToDelete)
                         }
                     }
                     .listStyle(PlainListStyle())
@@ -1651,6 +1986,17 @@ struct HomeGroupManagementSheet: View {
                     addHomeGroup()
                 }
             )
+        }
+        .alert("¿Estás seguro de eliminar \(groupsToDelete.first?.name ?? "este grupo")?", isPresented: $showingDeleteAlert) {
+            Button("Cancelar", role: .cancel) {
+                // No hacer nada, solo cerrar el alert
+            }
+            .foregroundColor(.gray)
+            
+            Button("Eliminar", role: .destructive) {
+                deleteHomeGroups(groupsToDelete)
+            }
+            .foregroundColor(.red)
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
@@ -2035,12 +2381,12 @@ struct FiltersSheet: View {
             (4, "Mayo"), (5, "Junio"), (6, "Julio"), (7, "Agosto"),
             (8, "Septiembre"), (9, "Octubre"), (10, "Noviembre"), (11, "Diciembre")
         ]
-        return months
+        return months.reversed()
     }
     
     private func getYearOptions() -> [Int] {
         let currentYear = Calendar.current.component(.year, from: Date())
-        return Array(1970...currentYear).reversed()
+        return Array(2020...currentYear).reversed()
     }
     
     private func getCategoryOptions() -> [String] {
@@ -2052,6 +2398,376 @@ struct FiltersSheet: View {
     ContentView()
         .modelContainer(for: [HomeGroup.self, Entry.self, Item.self], inMemory: true)
 }
+
+// MARK: - Money Validation Helper
+func validateMoneyInput(_ input: String) -> String {
+    // Si está vacío, permitir
+    if input.isEmpty {
+        return input
+    }
+    
+    // Solo permitir números y un punto decimal
+    let allowedCharacters = CharacterSet(charactersIn: "0123456789.")
+    let filtered = input.filter { String($0).rangeOfCharacter(from: allowedCharacters) != nil }
+    
+    // Si no hay caracteres válidos, retornar vacío
+    if filtered.isEmpty {
+        return ""
+    }
+    
+    // Separar parte entera y decimal
+    let components = filtered.components(separatedBy: ".")
+    
+    // Si hay más de un punto, solo tomar el primero
+    if components.count > 2 {
+        let integerPart = components[0]
+        let decimalPart = components[1]
+        return "\(integerPart).\(decimalPart)"
+    }
+    
+    // Si solo hay parte entera
+    if components.count == 1 {
+        let integerPart = components[0]
+        // Limitar a 9 dígitos
+        if integerPart.count > 9 {
+            return String(integerPart.prefix(9))
+        }
+        // Eliminar ceros a la izquierda, pero permitir un solo cero
+        let cleanedIntegerPart = integerPart.replacingOccurrences(of: "^0+", with: "", options: .regularExpression)
+        return cleanedIntegerPart.isEmpty ? "0" : cleanedIntegerPart
+    }
+    
+    // Si hay parte entera y decimal
+    let integerPart = components[0]
+    let decimalPart = components[1]
+    
+    // Limitar parte entera a 9 dígitos
+    let limitedIntegerPart = integerPart.count > 9 ? String(integerPart.prefix(9)) : integerPart
+    
+    // Eliminar ceros a la izquierda de la parte entera, pero permitir un solo cero
+    let cleanedIntegerPart = limitedIntegerPart.replacingOccurrences(of: "^0+", with: "", options: .regularExpression)
+    let finalIntegerPart = cleanedIntegerPart.isEmpty ? "0" : cleanedIntegerPart
+    
+    // Limitar parte decimal a 2 dígitos
+    let limitedDecimalPart = decimalPart.count > 2 ? String(decimalPart.prefix(2)) : decimalPart
+    
+    return "\(finalIntegerPart).\(limitedDecimalPart)"
+}
+
+// MARK: - App Info Sheet
+struct AppInfoSheet: View {
+    @Binding var isPresented: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingShareSheet = false
+    
+    init(isPresented: Binding<Bool>) {
+        self._isPresented = isPresented
+        // Suppress simulator warnings
+        #if targetEnvironment(simulator)
+        // These warnings are simulator-specific and don't affect functionality
+        #endif
+    }
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Section 1: App Icon and Title
+                    VStack(spacing: 16) {
+                        Image(systemName: "dollarsign.circle.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(.red)
+                        
+                        Text("OMO Money")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                        
+                        Text("Gestión inteligente de gastos personales")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.top, 20)
+                    .padding(.horizontal)
+                    .padding(.bottom, 24)
+                    
+                    Divider()
+                    
+                    // Section 2: App Description
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Acerca de OMO Money")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text("OMO Money es una herramienta de bolsillo diseñada para ayudarte a gestionar tus gastos personales de manera simple y eficiente. Organiza tus gastos por grupos, categorías y fechas para tener un control total de tus finanzas. Hazlo a tu manera con OMO.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .lineSpacing(4)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 24)
+                    
+                    Divider()
+                    
+                    // Section 3: Donations
+                    VStack(spacing: 12) {
+                        Text("¿Te gusta OMO Money?")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text("Si la app te está ayudando, considera apoyar el desarrollo con una donación.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                        
+                        Button(action: {
+                            if let url = URL(string: "https://buymeacoffee.com/omopockettool") {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "cup.and.saucer.fill")
+                                    .font(.system(size: 16))
+                                Text("Apoyar la comunidad")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(Color.gray)
+                            .cornerRadius(25)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 24)
+                    
+                    Divider()
+                    
+                    // Section 4: Share App
+                    VStack(spacing: 12) {
+                        Text("Compartir OMO Money")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text("Ayuda a otros a gestionar mejor sus finanzas compartiendo OMO Money con amigos y familiares.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                        
+                        Button(action: {
+                            showingShareSheet = true
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 16))
+                                Text("Compartir App")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(Color.gray)
+                            .cornerRadius(25)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 24)
+                    
+                    Divider()
+                    
+                    // Section 5: OMO Pocket Tool Catalog
+                    VStack(spacing: 12) {
+                        Text("Ecosistema OMO")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text("Descubre todas las herramientas del ecosistema OMO Pocket Tool diseñadas para tu crecimiento personal.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                        
+                        Button(action: {
+                            if let url = URL(string: "https://omopockettool.com/") {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "apps.iphone")
+                                    .font(.system(size: 16))
+                                Text("Ver Catálogo Completo")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(Color.gray)
+                            .cornerRadius(25)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 24)
+                    
+                    Divider()
+                    
+                    // Section 6: Contact, Developer signature, and Version
+                    VStack(spacing: 16) {
+                        // Contact
+                        VStack(spacing: 4) {
+                            Text("Contacto")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("omopockettool@gmail.com")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.red)
+                        }
+                        
+                        // Developer signature
+                        VStack(spacing: 12) {
+                            Text("Con 🤍 Dennis")
+                                .font(.headline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.center)
+                        }
+                        
+                        // Version
+                        VStack(spacing: 4) {
+                            Text("Versión")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("1.2.1")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 24)
+                    .padding(.bottom, 20)
+                }
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cerrar") {
+                        dismiss()
+                    }
+                    .foregroundColor(.red)
+                }
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                ShareSheet(activityItems: [
+                    "¡Descubre OMO Money! 💰\n\nUna herramienta de bolsillo para gestionar tus gastos personales de manera simple y eficiente.\n\nHazlo a tu manera con OMO.\n\nDescarga aquí: https://apps.apple.com/app/omo-money/id1234567890"
+                 ])
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+// MARK: - Share Sheet
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: activityItems,
+            applicationActivities: nil
+        )
+        
+        // Configure for iPad if needed
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = UIView()
+            popover.sourceRect = CGRect(x: 0, y: 0, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+struct FeatureRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(.red)
+                .frame(width: 20)
+            
+            Text(text)
+                .font(.body)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+    }
+}
+
+struct AppPreviewRow: View {
+    let name: String
+    let status: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // App icon
+            Circle()
+                .fill(color)
+                .frame(width: 24, height: 24)
+                .overlay(
+                    Text(String(name.prefix(1)))
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                )
+            
+            // App name
+            Text(name)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+            
+            Spacer()
+            
+            // Status badge
+            Text(status)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(status == "Disponible" ? .green : .orange)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(status == "Disponible" ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
+                )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
+
+
 
 // Extension for stable date formatting
 extension DateFormatter {
