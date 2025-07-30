@@ -5,6 +5,89 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2025-07-30
+
+### Added
+- **Enhanced Date Selection UX**:
+  - Two-step date confirmation system for better user control
+  - "Confirmar fecha" button appears after selecting a date
+  - Prevents accidental date selection and widget closure
+  - Clear visual feedback when date is selected but not confirmed
+- **Improved Dark Mode Support**:
+  - Consistent color scheme across all UI elements
+  - Proper contrast for all interactive elements in dark mode
+  - Unified background colors using `secondarySystemGroupedBackground`
+
+### Changed
+- **Widget Background Consistency**:
+  - Total Gastado widget now uses `secondarySystemGroupedBackground`
+  - Consistent appearance in both light and dark modes
+  - Matches the visual style of list items
+- **Interactive Elements Styling**:
+  - Dropdown de Grupo uses `secondarySystemGroupedBackground`
+  - Filtros button uses `secondarySystemGroupedBackground`
+  - Search button uses `secondarySystemGroupedBackground`
+  - All buttons now have consistent background colors
+- **Search Field Visibility**:
+  - Search field background changed to `systemBackground`
+  - Better contrast against the main background
+  - Clear visual distinction when search is active
+- **Date Picker Interaction**:
+  - Removed automatic closure on date selection
+  - Added confirmation step to prevent accidental closures
+  - Better handling of month/year navigation without closing widget
+
+### Technical
+- **Color System Updates**:
+  - Replaced `systemGray6` with `secondarySystemGroupedBackground` for consistency
+  - Updated search field to use `systemBackground` for better visibility
+  - Unified color scheme across all interactive elements
+- **Date Selection Logic**:
+  - Added `@State private var dateSelected: Bool` for tracking selection state
+  - Implemented confirmation button instead of automatic closure
+  - Better state management for date picker interactions
+- **UI Consistency**:
+  - All dropdowns and buttons now use the same background color
+  - Consistent visual hierarchy across the entire interface
+  - Improved dark mode compatibility
+
+### User Experience
+- **Consistent Visual Design**: All interactive elements have the same appearance
+- **Better Dark Mode**: Proper contrast and visibility in dark mode
+- **Controlled Date Selection**: No more accidental date picker closures
+- **Clear Visual Feedback**: Search field is clearly distinguishable
+- **Unified Interface**: Consistent styling across all UI components
+
+## [1.2.2] - 2025-07-30
+
+### Changed
+- **Search Button Styling**:
+  - Changed search button background from red to gray when active
+  - Updated search button icon color to gray when active
+  - More subtle visual feedback for active search state
+  - Consistent with overall app color scheme
+
+### Technical
+- **Color Updates**:
+  - Search button active state: `Color.gray.opacity(0.1)` instead of red
+  - Search button icon: `.gray` color when active instead of primary
+  - Better visual consistency with other UI elements
+
+## [1.2.1] - 2025-07-30
+
+### Changed
+- **Widget Background Fix**:
+  - Fixed Total Gastado widget visibility in dark mode
+  - Changed from `systemBackground` to `secondarySystemGroupedBackground`
+  - Ensures widget is visible in both light and dark modes
+  - Matches the background color of list items
+
+### Technical
+- **Dark Mode Compatibility**:
+  - Widget now uses the same background as list items
+  - Consistent appearance across all themes
+  - Proper contrast in both light and dark modes
+
 ## [1.2.1] - 2025-07-26
 
 ### Added
