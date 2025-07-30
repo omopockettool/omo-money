@@ -1106,7 +1106,9 @@ struct AddEntrySheet: View {
         .onAppear {
             // Set focus to description field only for new entries, not when editing
             if !isEditing {
-                focusedField = .title
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focusedField = .title
+                }
             }
         }
     }
@@ -1603,6 +1605,14 @@ struct AddItemSheet: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            if !isEditing {
+                // Focus on Descripción when adding a new item
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focusedField = .description
+                }
+            }
+        }
     }
 }
 
