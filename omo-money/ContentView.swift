@@ -350,11 +350,11 @@ struct ContentView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(.systemBackground))
-                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                .fill(Color(.secondarySystemGroupedBackground))
                         )
                         .padding(.horizontal)
                         .padding(.top, 8)
+                        .padding(.bottom, 8)
                     }
                 
                 if homeGroups.isEmpty {
@@ -507,7 +507,7 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .listRowInsets(EdgeInsets())
-                                    .listRowBackground(Color(.systemGray6))
+                                    .listRowBackground(Color(.secondarySystemGroupedBackground))
                                     .transition(.asymmetric(
                                         insertion: .move(edge: .leading).combined(with: .opacity),
                                         removal: .move(edge: .trailing).combined(with: .opacity)
@@ -521,8 +521,10 @@ struct ContentView: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: entriesByDate.map { $0.sectionId })
+                    .background(Color.clear)
                 }
             }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("OMO Money")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
