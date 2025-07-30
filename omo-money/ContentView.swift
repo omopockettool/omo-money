@@ -1244,7 +1244,7 @@ struct EntryDetailView: View {
                     itemMoney: $itemMoney,
                     itemAmount: $itemAmount,
                     itemDescription: $itemDescription,
-                    isEditing: editingItem != nil,
+                    editingItem: $editingItem,
                     onSave: {
                         if let editingItem = editingItem {
                             updateItem(editingItem)
@@ -1253,6 +1253,9 @@ struct EntryDetailView: View {
                         }
                     }
                 )
+                .onDisappear {
+                    editingItem = nil
+                }
             }
             .sheet(isPresented: $showingEditEntry) {
                 AddEntrySheet(
@@ -1450,9 +1453,8 @@ struct AddItemSheet: View {
     @Binding var itemMoney: String
     @Binding var itemAmount: String
     @Binding var itemDescription: String
-    var isEditing: Bool = false
+    @Binding var editingItem: Item?
     var onSave: () -> Void
-    
     @FocusState private var focusedField: Field?
     
     private var isFormValid: Bool {
@@ -1472,6 +1474,7 @@ struct AddItemSheet: View {
     }
     
     var body: some View {
+        let isEditing = editingItem != nil
         NavigationView {
             VStack(spacing: 20) {
                 // Description Section
@@ -1607,10 +1610,11 @@ struct AddItemSheet: View {
         .presentationDragIndicator(.visible)
         .onAppear {
             if !isEditing {
-                // Focus on Descripción when adding a new item
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     focusedField = .description
                 }
+            } else {
+                focusedField = nil
             }
         }
     }
