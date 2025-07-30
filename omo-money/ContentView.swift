@@ -317,7 +317,7 @@ struct ContentView: View {
                 if let currentHomeGroup = currentHomeGroup {
                         let totalSpent = filteredEntries.reduce(0.0) { total, entry in
                             let items = allItems.filter { $0.entryId == entry.id }
-                            let entryTotal = items.reduce(0.0) { $0 + $1.money }
+                            let entryTotal = items.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
                             return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
                         }
                         let currencySymbol = Currency(rawValue: currentHomeGroup.currency)?.symbol ?? "$"
@@ -659,7 +659,9 @@ struct ContentView: View {
                     money: money,
                     amount: 1,
                     itemDescription: entryTitle,
-                    entryId: newEntry.id
+                    entryId: newEntry.id,
+                    position: nil,
+                    payed: true
                 )
                 modelContext.insert(initialItem)
             }
@@ -718,6 +720,24 @@ struct EntryRowView: View {
         allItems.filter { $0.entryId == entry.id }
     }
     
+    // Computed property to determine payment status
+    private var paymentStatus: (icon: String, color: Color) {
+        if items.isEmpty {
+            return ("circle", .gray) // No items
+        }
+        
+        let paidItems = items.filter { $0.payed == true }
+        let totalItems = items.count
+        
+        if paidItems.count == 0 {
+            return ("exclamationmark.triangle.fill", .orange) // No items paid
+        } else if paidItems.count == totalItems {
+            return ("checkmark.circle.fill", .green) // All items paid
+        } else {
+            return ("exclamationmark.circle.fill", .orange) // Some items paid
+        }
+    }
+    
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 16) {
@@ -734,34 +754,46 @@ struct EntryRowView: View {
                         .foregroundColor(.white)
                         .cornerRadius(4)
                     
-                    // Show list icon only when entry has items
+                    // Payment status icon (smaller size) - only show if there are items
                     if !items.isEmpty {
-                        Image(systemName: "list.bullet")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        paymentStatusIconSmall
                     }
                 }
             }
             
             Spacer()
             
-            // Show total amount if there are items
+            // Show total amount and status if there are items
             if !items.isEmpty {
-                let total = items.reduce(0) { $0 + $1.money }
-                let color = entry.type ? Color.green : Color.red
+                let paidItems = items.filter { $0.payed == true }
+                let unpaidItems = items.filter { $0.payed != true }
+                let totalPaid = paidItems.reduce(0) { $0 + $1.money }
+                let totalUnpaid = unpaidItems.reduce(0) { $0 + $1.money }
+                
                 // Get currency from home group
                 let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
                 let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
                 
-                if total > 0 {
-                    Text("\(currencySymbol)\(String(format: "%.2f", total))")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(color)
-                } else {
-                    Text("Sin precio")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                VStack(alignment: .trailing, spacing: 4) {
+                    // Show total paid amount (always show if there are paid items)
+                    if paidItems.count > 0 {
+                        Text("\(currencySymbol)\(String(format: "%.2f", totalPaid))")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(entry.type ? Color.green : Color.red)
+                    }
+                    
+                    // Show unpaid amount or status
+                    if totalUnpaid > 0 {
+                        Text("Pendiente: \(currencySymbol)\(String(format: "%.2f", totalUnpaid))")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    } else if unpaidItems.count > 0 {
+                        // Items pending but with 0.00 price
+                        Text("Items pendientes")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
                 }
             } else {
                 Text("Sin items")
@@ -769,6 +801,14 @@ struct EntryRowView: View {
                     .foregroundColor(.secondary)
             }
         }
+    }
+    
+    // Computed property for payment status icon (smaller size)
+    private var paymentStatusIconSmall: some View {
+        let (iconName, iconColor) = paymentStatus
+        return Image(systemName: iconName)
+            .font(.caption)
+            .foregroundColor(iconColor)
     }
     
     private func categoryColor(_ category: String) -> Color {
@@ -1201,6 +1241,7 @@ struct EntryDetailView: View {
     @State private var itemMoney = ""
     @State private var itemAmount = ""
     @State private var itemDescription = ""
+    @State private var itemPayed = false
     @State private var editingItem: Item? = nil
     @State private var entryTitle = ""
     @State private var entryDate = Date()
@@ -1308,6 +1349,7 @@ struct EntryDetailView: View {
                     itemMoney: $itemMoney,
                     itemAmount: $itemAmount,
                     itemDescription: $itemDescription,
+                    itemPayed: $itemPayed,
                     editingItem: $editingItem,
                     onSave: {
                         if let editingItem = editingItem {
@@ -1345,6 +1387,7 @@ struct EntryDetailView: View {
         itemMoney = ""
         itemAmount = "1"
         itemDescription = ""
+        itemPayed = false
         editingItem = nil
         showingAddItem = true
     }
@@ -1353,6 +1396,7 @@ struct EntryDetailView: View {
         itemMoney = String(format: "%.2f", item.money)
         itemAmount = item.amount?.description ?? ""
         itemDescription = item.itemDescription
+        itemPayed = item.payed ?? false
         editingItem = item
         showingAddItem = true
     }
@@ -1381,7 +1425,9 @@ struct EntryDetailView: View {
                 money: money,
                 amount: amount,
                 itemDescription: itemDescription,
-                entryId: entry.id
+                entryId: entry.id,
+                position: nil,
+                payed: itemPayed
             )
             modelContext.insert(newItem)
             
@@ -1396,6 +1442,7 @@ struct EntryDetailView: View {
         itemMoney = ""
         itemAmount = ""
         itemDescription = ""
+        itemPayed = false
     }
     
     private func updateItem(_ item: Item) {
@@ -1411,6 +1458,7 @@ struct EntryDetailView: View {
             item.money = money
             item.amount = amount
             item.itemDescription = itemDescription
+            item.payed = itemPayed
             
             do {
                 try modelContext.save()
@@ -1423,6 +1471,7 @@ struct EntryDetailView: View {
         itemMoney = ""
         itemAmount = ""
         itemDescription = ""
+        itemPayed = false
         editingItem = nil
     }
     
@@ -1475,9 +1524,17 @@ struct ItemRowView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.itemDescription)
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                HStack(spacing: 4) {
+                    Text(item.itemDescription)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    if item.payed != true {
+                        Text("(Pendiente)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
                 
                 if let amount = item.amount {
                     Text("Cantidad: \(amount)")
@@ -1488,8 +1545,6 @@ struct ItemRowView: View {
             
             Spacer()
             
-            // Color the amount based on entry type (red for expenses, green for income)
-            let amountColor = entry.type ? Color.green : Color.red
             // Get currency from home group
             let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
             let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
@@ -1497,7 +1552,7 @@ struct ItemRowView: View {
             if item.money > 0 {
                 Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
                     .font(.headline)
-                    .foregroundColor(amountColor)
+                    .foregroundColor(item.payed != true ? .orange : (entry.type ? Color.green : Color.red))
             } else {
                 Text("Sin precio")
                     .font(.caption)
@@ -1517,6 +1572,7 @@ struct AddItemSheet: View {
     @Binding var itemMoney: String
     @Binding var itemAmount: String
     @Binding var itemDescription: String
+    @Binding var itemPayed: Bool
     @Binding var editingItem: Item?
     var onSave: () -> Void
     @FocusState private var focusedField: Field?
@@ -1610,6 +1666,29 @@ struct AddItemSheet: View {
                         )
                         .keyboardType(.numberPad)
                         .focused($focusedField, equals: .amount)
+                }
+                .padding(.horizontal)
+                
+                // Payed Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Pagado")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    HStack {
+                        Text(itemPayed ? "Sí" : "No")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Toggle("", isOn: $itemPayed)
+                            .toggleStyle(SwitchToggleStyle(tint: .green))
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(.systemGray4), lineWidth: 1)
+                    )
                 }
                 .padding(.horizontal)
                 
@@ -1713,7 +1792,7 @@ struct CategoryManagementSheet: View {
         return grouped.map { category, categoryEntries in
             let totalSpent = categoryEntries.reduce(0.0) { total, entry in
                 let items = allItems.filter { $0.entryId == entry.id }
-                let entryTotal = items.reduce(0.0) { $0 + $1.money }
+                let entryTotal = items.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
                 return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
             }
             return CategoryStats(

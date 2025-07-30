@@ -5,6 +5,66 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2025-07-30
+
+### Added
+- **Payment Status Icons**:
+  - Visual indicators for entry payment status in entry rows
+  - Green checkmark (✅) for fully paid entries
+  - Orange triangle (⚠️) for entries with pending payments
+  - Orange circle (🟠) for partially paid entries
+  - Icons positioned next to category badges for better visual integration
+- **Enhanced Payment Status Display**:
+  - Clear distinction between paid and unpaid items
+  - Shows total paid amount and pending amounts separately
+  - "Items pendientes" label for unpaid items with 0.00 price
+  - Consistent color coding: green for paid, orange for pending
+
+### Changed
+- **Entry Row Layout**:
+  - Payment status icons moved next to category badges
+  - Smaller icon size (caption) for better visual balance
+  - No icons shown when entry has no items (cleaner interface)
+  - Better visual hierarchy with grouped status indicators
+- **Payment Status Logic**:
+  - Optional `payed` property to handle existing data without payment status
+  - Backward compatibility with items that don't have payment information
+  - Default behavior treats items without payment status as pending
+  - Improved handling of items with 0.00 price
+- **Total Amount Display**:
+  - Always shows price for paid items (even if 0.00)
+  - Separate display for paid and pending amounts
+  - Clear visual distinction between payment status and monetary value
+  - Consistent formatting across all entry types
+
+### Technical
+- **Data Model Updates**:
+  - Changed `payed` property from `Bool` to `Bool?` for backward compatibility
+  - Updated all payment status checks to handle optional values
+  - Maintained existing data integrity while adding new functionality
+- **Payment Status Computation**:
+  - Enhanced `paymentStatus` computed property with clear logic
+  - Proper handling of items with `nil` payment status
+  - Consistent icon and color assignment based on payment state
+- **UI Component Updates**:
+  - Added `paymentStatusIconSmall` for compact display
+  - Conditional icon display based on item presence
+  - Improved visual integration with existing category badges
+
+### User Experience
+- **Visual Payment Tracking**: Clear indicators for payment status at a glance
+- **Consistent Interface**: Payment icons integrate seamlessly with existing design
+- **Backward Compatibility**: Existing data works without issues
+- **Clean Layout**: No unnecessary icons when entries have no items
+- **Clear Information**: Distinction between payment status and monetary amounts
+
+### Benefits
+- **Quick Status Assessment**: Instantly see which entries are paid or pending
+- **Better Organization**: Visual grouping of related information
+- **Data Safety**: Existing data remains intact and functional
+- **Improved Clarity**: Clear separation between payment status and amounts
+- **Enhanced Workflow**: Better visual feedback for payment management
+
 ## [1.3.0] - 2025-07-30
 
 ### Added
