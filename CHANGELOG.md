@@ -5,6 +5,66 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-07-30
+
+### Added
+- **Advanced Options Collapsible Section**:
+  - Moved date, category, group, and type fields into collapsible "Opciones Avanzadas" section
+  - Reduces form complexity and makes entry creation less overwhelming
+  - Smooth animation when expanding/collapsing advanced options
+  - Gear icon with chevron indicator for intuitive interaction
+- **Simplified Entry Form**:
+  - Main form now only shows essential fields: description and price
+  - Advanced options are hidden by default but easily accessible
+  - Better focus on primary information needed for quick entry creation
+  - Improved user experience for frequent entry creation
+
+### Changed
+- **Form Layout Restructuring**:
+  - Date selection moved to advanced options section
+  - Category selection moved to advanced options section
+  - Home group selection moved to advanced options section
+  - Entry type selection moved to advanced options section
+  - Main form now focuses on description and optional price
+- **Advanced Options Design**:
+  - Collapsible section with gear icon and "Opciones Avanzadas" label
+  - Smooth expand/collapse animation with `.easeInOut(duration: 0.3)`
+  - Visual chevron indicator showing expand/collapse state
+  - Subtle background color for expanded content area
+- **Default Values**:
+  - Date defaults to current date
+  - Category defaults to "otros" (other)
+  - Group defaults to current group
+  - Type defaults to "gasto" (expense)
+
+### Technical
+- **State Management**:
+  - Added `@State private var showAdvancedOptions: Bool = false` for collapsible section
+  - Maintained all existing functionality while reorganizing UI
+  - Proper animation timing for smooth user experience
+- **UI Architecture**:
+  - Restructured AddEntrySheet to separate essential and advanced fields
+  - Maintained all existing validation and interaction logic
+  - Preserved keyboard navigation and focus management
+- **User Experience**:
+  - Reduced cognitive load for new entry creation
+  - Maintained full functionality for power users
+  - Better balance between simplicity and advanced features
+
+### User Experience
+- **Simplified Workflow**: Quick entry creation with essential fields only
+- **Advanced Access**: Full customization available when needed
+- **Visual Clarity**: Clear separation between basic and advanced options
+- **Smooth Interactions**: Animated transitions for better feedback
+- **Intuitive Design**: Gear icon clearly indicates advanced functionality
+
+### Benefits
+- **Faster Entry Creation**: Users can quickly add entries with minimal input
+- **Reduced Overwhelm**: Less visual clutter in the main form
+- **Flexible Usage**: Advanced users can still access all customization options
+- **Better Onboarding**: New users see a simpler, less intimidating interface
+- **Maintained Functionality**: All existing features remain fully accessible
+
 ## [1.2.4] - 2025-07-30
 
 ### Added
