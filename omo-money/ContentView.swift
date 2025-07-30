@@ -798,6 +798,7 @@ struct AddEntrySheet: View {
     @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
     
     @State private var showDatePicker: Bool = false
+    @State private var dateSelected: Bool = false
     @FocusState private var focusedField: Field?
     
     // Computed property to check if the form is valid
@@ -876,6 +877,7 @@ struct AddEntrySheet: View {
                         Button(action: {
                             // Cerrar el teclado antes de mostrar el date picker
                             focusedField = nil
+                            dateSelected = false
                             showDatePicker.toggle()
                         }) {
                             HStack {
@@ -899,16 +901,33 @@ struct AddEntrySheet: View {
                         .buttonStyle(PlainButtonStyle())
                         
                         if showDatePicker {
-                            DatePicker("", selection: $entryDate, displayedComponents: .date)
-                                .datePickerStyle(.graphical)
-                                .labelsHidden()
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                                .onChange(of: entryDate) { _, _ in
-                                    // Close the date picker when a date is selected
-                                    showDatePicker = false
+                            VStack(spacing: 8) {
+                                DatePicker("", selection: $entryDate, displayedComponents: .date)
+                                    .datePickerStyle(.graphical)
+                                    .labelsHidden()
+                                    .onChange(of: entryDate) { _, _ in
+                                        // Mark that a date has been selected
+                                        dateSelected = true
+                                    }
+                                
+                                if dateSelected {
+                                    Button(action: {
+                                        showDatePicker = false
+                                        dateSelected = false
+                                    }) {
+                                        Text("Confirmar fecha")
+                                            .font(.subheadline)
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(Color.blue)
+                                            .cornerRadius(8)
+                                    }
                                 }
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                         }
                     }
                     .padding(.horizontal)
