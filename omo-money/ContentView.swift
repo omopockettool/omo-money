@@ -326,14 +326,14 @@ struct ContentView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
                                     Text("Total Gastado")
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
                                 }
                                 
-                                Text("\(currencySymbol)\(String(format: "%.2f", totalSpent))")
+                                Text("\(String(format: "%.2f", totalSpent))\(currencySymbol)")
                                     .font(.title)
                                     .fontWeight(.bold)
-                                    .foregroundColor(.red)
+                                    .foregroundColor(.primary)
                             }
                             
                             Spacer()
@@ -1792,7 +1792,7 @@ struct CategoryManagementSheet: View {
                     let currencySymbol = Currency(rawValue: currentHomeGroup?.currency ?? "USD")?.symbol ?? "$"
                     
                     HStack {
-                        Text("Total gastado: \(currencySymbol)\(String(format: "%.0f", totalSpent))")
+                        Text("Total gastado: \(currencySymbol)\(String(format: "%.2f", totalSpent))")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
