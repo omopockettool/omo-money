@@ -2346,12 +2346,12 @@ struct FiltersSheet: View {
             (4, "Mayo"), (5, "Junio"), (6, "Julio"), (7, "Agosto"),
             (8, "Septiembre"), (9, "Octubre"), (10, "Noviembre"), (11, "Diciembre")
         ]
-        return months
+        return months.reversed()
     }
     
     private func getYearOptions() -> [Int] {
         let currentYear = Calendar.current.component(.year, from: Date())
-        return Array(1970...currentYear).reversed()
+        return Array(2020...currentYear).reversed()
     }
     
     private func getCategoryOptions() -> [String] {
