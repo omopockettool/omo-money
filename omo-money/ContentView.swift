@@ -174,7 +174,7 @@ struct ContentView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color(.systemGray6))
+                                .background(Color(.secondarySystemGroupedBackground))
                                 .cornerRadius(8)
                             }
                             
@@ -223,7 +223,7 @@ struct ContentView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color(.systemGray6))
+                                .background(Color(.secondarySystemGroupedBackground))
                                 .cornerRadius(8)
                             }
                         }
@@ -241,7 +241,7 @@ struct ContentView: View {
                         }) {
                             HStack(spacing: 4) {
                                 Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(isSearchActive ? .gray : .primary)
                                 
                                 // Show search indicator if there's active search
                                 if !searchText.isEmpty {
@@ -252,7 +252,7 @@ struct ContentView: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(isSearchActive ? Color.red.opacity(0.1) : Color(.systemGray6))
+                            .background(isSearchActive ? Color.gray.opacity(0.1) : Color(.secondarySystemGroupedBackground))
                             .cornerRadius(8)
                         }
                     }
@@ -294,7 +294,7 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color(.systemGray6).opacity(0.6))
+                        .background(Color(.systemBackground))
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
