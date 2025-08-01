@@ -20,7 +20,7 @@ struct ContentView: View {
     @State private var selectedEntry: Entry? = nil
     @State private var entryTitle = ""
     @State private var entryDate = Date()
-    @State private var entryCategory = EntryCategory.comida.rawValue
+    @State private var entryCategory = EntryCategory.otros.rawValue
     @State private var entryType = false // false = outcome, true = income
     @State private var entryHomeGroupId = ""
     @State private var entryMoney = ""
@@ -317,7 +317,7 @@ struct ContentView: View {
                 if let currentHomeGroup = currentHomeGroup {
                         let totalSpent = filteredEntries.reduce(0.0) { total, entry in
                             let items = allItems.filter { $0.entryId == entry.id }
-                            let entryTotal = items.reduce(0.0) { $0 + $1.money }
+                            let entryTotal = items.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
                             return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
                         }
                         let currencySymbol = Currency(rawValue: currentHomeGroup.currency)?.symbol ?? "$"
@@ -622,7 +622,7 @@ struct ContentView: View {
     private func prepareForNewEntry() {
         entryTitle = ""
         entryDate = Calendar.current.startOfDay(for: Date())
-        entryCategory = EntryCategory.comida.rawValue
+        entryCategory = EntryCategory.otros.rawValue
         entryType = false
         entryHomeGroupId = selectedHomeGroupId ?? ""
         entryMoney = ""
@@ -659,7 +659,9 @@ struct ContentView: View {
                     money: money,
                     amount: 1,
                     itemDescription: entryTitle,
-                    entryId: newEntry.id
+                    entryId: newEntry.id,
+                    position: nil,
+                    payed: true
                 )
                 modelContext.insert(initialItem)
             }
@@ -718,6 +720,24 @@ struct EntryRowView: View {
         allItems.filter { $0.entryId == entry.id }
     }
     
+    // Computed property to determine payment status
+    private var paymentStatus: (icon: String, color: Color) {
+        if items.isEmpty {
+            return ("circle", .gray) // No items
+        }
+        
+        let paidItems = items.filter { $0.payed == true }
+        let totalItems = items.count
+        
+        if paidItems.count == 0 {
+            return ("exclamationmark.triangle.fill", .orange) // No items paid
+        } else if paidItems.count == totalItems {
+            return ("checkmark.circle.fill", .green) // All items paid
+        } else {
+            return ("exclamationmark.circle.fill", .orange) // Some items paid
+        }
+    }
+    
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 16) {
@@ -734,34 +754,46 @@ struct EntryRowView: View {
                         .foregroundColor(.white)
                         .cornerRadius(4)
                     
-                    // Show list icon only when entry has items
+                    // Payment status icon (smaller size) - only show if there are items
                     if !items.isEmpty {
-                        Image(systemName: "list.bullet")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        paymentStatusIconSmall
                     }
                 }
             }
             
             Spacer()
             
-            // Show total amount if there are items
+            // Show total amount and status if there are items
             if !items.isEmpty {
-                let total = items.reduce(0) { $0 + $1.money }
-                let color = entry.type ? Color.green : Color.red
+                let paidItems = items.filter { $0.payed == true }
+                let unpaidItems = items.filter { $0.payed != true }
+                let totalPaid = paidItems.reduce(0) { $0 + $1.money }
+                let totalUnpaid = unpaidItems.reduce(0) { $0 + $1.money }
+                
                 // Get currency from home group
                 let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
                 let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
                 
-                if total > 0 {
-                    Text("\(currencySymbol)\(String(format: "%.2f", total))")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(color)
-                } else {
-                    Text("Sin precio")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                VStack(alignment: .trailing, spacing: 4) {
+                    // Show total paid amount (always show if there are paid items)
+                    if paidItems.count > 0 {
+                        Text("\(currencySymbol)\(String(format: "%.2f", totalPaid))")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(entry.type ? Color.green : Color.red)
+                    }
+                    
+                    // Show unpaid amount or status
+                    if totalUnpaid > 0 {
+                        Text("Pendiente: \(currencySymbol)\(String(format: "%.2f", totalUnpaid))")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    } else if unpaidItems.count > 0 {
+                        // Items pending but with 0.00 price
+                        Text("Items pendientes")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
                 }
             } else {
                 Text("Sin items")
@@ -769,6 +801,14 @@ struct EntryRowView: View {
                     .foregroundColor(.secondary)
             }
         }
+    }
+    
+    // Computed property for payment status icon (smaller size)
+    private var paymentStatusIconSmall: some View {
+        let (iconName, iconColor) = paymentStatus
+        return Image(systemName: iconName)
+            .font(.caption)
+            .foregroundColor(iconColor)
     }
     
     private func categoryColor(_ category: String) -> Color {
@@ -799,6 +839,7 @@ struct AddEntrySheet: View {
     
     @State private var showDatePicker: Bool = false
     @State private var dateSelected: Bool = false
+    @State private var showAdvancedOptions: Bool = false
     @FocusState private var focusedField: Field?
     
     // Computed property to check if the form is valid
@@ -868,25 +909,21 @@ struct AddEntrySheet: View {
                         .padding(.horizontal)
                     }
                     
-                    // Date Section
+                    // Advanced Options Section
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Fecha")
-                            .font(.headline)
-                            .foregroundColor(Color(.systemGray))
-                        
                         Button(action: {
-                            // Cerrar el teclado antes de mostrar el date picker
-                            focusedField = nil
-                            dateSelected = false
-                            showDatePicker.toggle()
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                showAdvancedOptions.toggle()
+                            }
                         }) {
                             HStack {
-                                Image(systemName: "calendar")
+                                Image(systemName: "gearshape")
                                     .foregroundColor(.gray)
-                                Text(entryDate.formatted(date: .abbreviated, time: .omitted))
-                                    .foregroundColor(.primary)
+                                Text("Opciones Avanzadas")
+                                    .font(.headline)
+                                    .foregroundColor(Color(.systemGray))
                                 Spacer()
-                                Image(systemName: "chevron.right")
+                                Image(systemName: showAdvancedOptions ? "chevron.up" : "chevron.down")
                                     .foregroundColor(.gray)
                                     .font(.caption)
                             }
@@ -900,170 +937,216 @@ struct AddEntrySheet: View {
                         }
                         .buttonStyle(PlainButtonStyle())
                         
-                        if showDatePicker {
-                            VStack(spacing: 8) {
-                                DatePicker("", selection: $entryDate, displayedComponents: .date)
-                                    .datePickerStyle(.graphical)
-                                    .labelsHidden()
-                                    .onChange(of: entryDate) { _, _ in
-                                        // Mark that a date has been selected
-                                        dateSelected = true
-                                    }
-                                
-                                if dateSelected {
+                        if showAdvancedOptions {
+                            VStack(spacing: 16) {
+                                // Date Section
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Fecha")
+                                        .font(.headline)
+                                        .foregroundColor(Color(.systemGray))
+                                    
                                     Button(action: {
-                                        showDatePicker = false
+                                        // Cerrar el teclado antes de mostrar el date picker
+                                        focusedField = nil
                                         dateSelected = false
-                                    }) {
-                                        Text("Confirmar fecha")
-                                            .font(.subheadline)
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 8)
-                                            .background(Color.blue)
-                                            .cornerRadius(8)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    // Category Section
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Categoría")
-                            .font(.headline)
-                            .foregroundColor(Color(.systemGray))
-                        
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                            ForEach(EntryCategory.allCases, id: \.self) { category in
-                                Button(action: {
-                                    entryCategory = category.rawValue
-                                }) {
-                                    HStack {
-                                        Circle()
-                                            .fill(categoryColor(category.rawValue))
-                                            .frame(width: 12, height: 12)
-                                        Text(category.displayName)
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        if entryCategory == category.rawValue {
-                                            Image(systemName: "checkmark")
-                                                .foregroundColor(.green)
-                                        }
-                                    }
-                                    .padding()
-                                    .background(entryCategory == category.rawValue ? Color.green.opacity(0.1) : Color(.systemGray6))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(entryCategory == category.rawValue ? Color.green : Color(.systemGray4), lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    // Home Group Section (only show if editing or multiple home groups exist)
-                    if isEditing || homeGroups.count > 1 {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Grupo")
-                                .font(.headline)
-                                .foregroundColor(Color(.systemGray))
-                            
-                            Menu {
-                                ForEach(homeGroups, id: \.id) { homeGroup in
-                                    Button(action: {
-                                        entryHomeGroupId = homeGroup.id
+                                        showDatePicker.toggle()
                                     }) {
                                         HStack {
-                                            Text(homeGroup.name)
-                                            if entryHomeGroupId == homeGroup.id {
-                                                Image(systemName: "checkmark")
+                                            Image(systemName: "calendar")
+                                                .foregroundColor(.gray)
+                                            Text(entryDate.formatted(date: .abbreviated, time: .omitted))
+                                                .foregroundColor(.primary)
+                                            Spacer()
+                                            Image(systemName: "chevron.right")
+                                                .foregroundColor(.gray)
+                                                .font(.caption)
+                                        }
+                                        .padding()
+                                        .background(Color(.systemGray6))
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color(.systemGray4), lineWidth: 1)
+                                        )
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    
+                                    if showDatePicker {
+                                        VStack(spacing: 8) {
+                                            DatePicker("", selection: $entryDate, displayedComponents: .date)
+                                                .datePickerStyle(.graphical)
+                                                .labelsHidden()
+                                                .onChange(of: entryDate) { _, _ in
+                                                    // Mark that a date has been selected
+                                                    dateSelected = true
+                                                }
+                                            
+                                            if dateSelected {
+                                                Button(action: {
+                                                    showDatePicker = false
+                                                    dateSelected = false
+                                                }) {
+                                                    Text("Confirmar fecha")
+                                                        .font(.subheadline)
+                                                        .foregroundColor(.white)
+                                                        .padding(.horizontal, 16)
+                                                        .padding(.vertical, 8)
+                                                        .background(Color.blue)
+                                                        .cornerRadius(8)
+                                                }
                                             }
+                                        }
+                                        .padding()
+                                        .background(Color(.systemGray6))
+                                        .cornerRadius(8)
+                                    }
+                                }
+                                
+                                // Category Section
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Categoría")
+                                        .font(.headline)
+                                        .foregroundColor(Color(.systemGray))
+                                    
+                                    Menu {
+                                        ForEach(EntryCategory.allCases, id: \.self) { category in
+                                            Button(action: {
+                                                entryCategory = category.rawValue
+                                            }) {
+                                                HStack {
+                                                    Circle()
+                                                        .fill(categoryColor(category.rawValue))
+                                                        .frame(width: 12, height: 12)
+                                                    Text(category.displayName)
+                                                    if entryCategory == category.rawValue {
+                                                        Image(systemName: "checkmark")
+                                                            .foregroundColor(.green)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Circle()
+                                                .fill(categoryColor(entryCategory))
+                                                .frame(width: 12, height: 12)
+                                            Text(EntryCategory(rawValue: entryCategory)?.displayName ?? "Seleccionar Categoría")
+                                                .foregroundColor(.primary)
+                                            Spacer()
+                                            Image(systemName: "chevron.down")
+                                                .foregroundColor(.gray)
+                                        }
+                                        .padding()
+                                        .background(Color(.systemGray6))
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color(.systemGray4), lineWidth: 1)
+                                        )
+                                    }
+                                }
+                                
+                                // Home Group Section (only show if editing or multiple home groups exist)
+                                if isEditing || homeGroups.count > 1 {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Grupo")
+                                            .font(.headline)
+                                            .foregroundColor(Color(.systemGray))
+                                        
+                                        Menu {
+                                            ForEach(homeGroups, id: \.id) { homeGroup in
+                                                Button(action: {
+                                                    entryHomeGroupId = homeGroup.id
+                                                }) {
+                                                    HStack {
+                                                        Text(homeGroup.name)
+                                                        if entryHomeGroupId == homeGroup.id {
+                                                            Image(systemName: "checkmark")
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } label: {
+                                            HStack {
+                                                let selectedGroup = homeGroups.first { $0.id == entryHomeGroupId }
+                                                Text(selectedGroup?.name ?? "Seleccionar Grupo")
+                                                    .foregroundColor(.primary)
+                                                Spacer()
+                                                Image(systemName: "chevron.down")
+                                                    .foregroundColor(.gray)
+                                            }
+                                            .padding()
+                                            .background(Color(.systemGray6))
+                                            .cornerRadius(8)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                                            )
                                         }
                                     }
                                 }
-                            } label: {
-                                HStack {
-                                    let selectedGroup = homeGroups.first { $0.id == entryHomeGroupId }
-                                    Text(selectedGroup?.name ?? "Seleccionar Grupo")
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                    Image(systemName: "chevron.down")
-                                        .foregroundColor(.gray)
-                                }
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(.systemGray4), lineWidth: 1)
-                                )
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Type Section
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Tipo")
-                            .font(.headline)
-                            .foregroundColor(Color(.systemGray))
-                        
-                        HStack(spacing: 12) {
-                            Button(action: {
-                                entryType = false
-                            }) {
-                                HStack {
-                                    Image(systemName: "arrow.down.circle")
-                                        .foregroundColor(.red)
-                                    Text("Gasto")
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                    if !entryType {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.green)
+                                
+                                // Type Section
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Tipo")
+                                        .font(.headline)
+                                        .foregroundColor(Color(.systemGray))
+                                    
+                                    HStack(spacing: 12) {
+                                        Button(action: {
+                                            entryType = false
+                                        }) {
+                                            HStack {
+                                                Image(systemName: "arrow.down.circle")
+                                                    .foregroundColor(.red)
+                                                Text("Gasto")
+                                                    .foregroundColor(.primary)
+                                                Spacer()
+                                                if !entryType {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundColor(.green)
+                                                }
+                                            }
+                                            .padding()
+                                            .background(!entryType ? Color.red.opacity(0.1) : Color(.systemGray6))
+                                            .cornerRadius(8)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(!entryType ? Color.red : Color(.systemGray4), lineWidth: 1)
+                                            )
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                        
+                                        // Button(action: {
+                                        //     entryType = true
+                                        // }) {
+                                        //     HStack {
+                                        //         Image(systemName: "arrow.up.circle")
+                                        //             .foregroundColor(.green)
+                                        //         Text("Ingreso")
+                                        //             .foregroundColor(.primary)
+                                        //         Spacer()
+                                        //         if entryType {
+                                        //             Image(systemName: "checkmark")
+                                        //                 .foregroundColor(.green)
+                                        //         }
+                                        //     }
+                                        //     .padding()
+                                        //     .background(entryType ? Color.green.opacity(0.1) : Color(.systemGray6))
+                                        //     .cornerRadius(8)
+                                        //     .overlay(
+                                        //         RoundedRectangle(cornerRadius: 8)
+                                        //             .stroke(entryType ? Color.green : Color(.systemGray4), lineWidth: 1)
+                                        //     )
+                                        // }
+                                        // .buttonStyle(PlainButtonStyle())
                                     }
                                 }
-                                .padding()
-                                .background(!entryType ? Color.red.opacity(0.1) : Color(.systemGray6))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(!entryType ? Color.red : Color(.systemGray4), lineWidth: 1)
-                                )
                             }
-                            .buttonStyle(PlainButtonStyle())
-                            
-                            // Button(action: {
-                            //     entryType = true
-                            // }) {
-                            //     HStack {
-                            //         Image(systemName: "arrow.up.circle")
-                            //             .foregroundColor(.green)
-                            //         Text("Ingreso")
-                            //             .foregroundColor(.primary)
-                            //         Spacer()
-                            //         if entryType {
-                            //             Image(systemName: "checkmark")
-                            //                 .foregroundColor(.green)
-                            //         }
-                            //     }
-                            //     .padding()
-                            //     .background(entryType ? Color.green.opacity(0.1) : Color(.systemGray6))
-                            //     .cornerRadius(8)
-                            //     .overlay(
-                            //         RoundedRectangle(cornerRadius: 8)
-                            //             .stroke(entryType ? Color.green : Color(.systemGray4), lineWidth: 1)
-                            //     )
-                            // }
-                            // .buttonStyle(PlainButtonStyle())
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemGray6).opacity(0.5))
+                            .cornerRadius(8)
                         }
                     }
                     .padding(.horizontal)
@@ -1158,6 +1241,7 @@ struct EntryDetailView: View {
     @State private var itemMoney = ""
     @State private var itemAmount = ""
     @State private var itemDescription = ""
+    @State private var itemPayed = false
     @State private var editingItem: Item? = nil
     @State private var entryTitle = ""
     @State private var entryDate = Date()
@@ -1265,6 +1349,7 @@ struct EntryDetailView: View {
                     itemMoney: $itemMoney,
                     itemAmount: $itemAmount,
                     itemDescription: $itemDescription,
+                    itemPayed: $itemPayed,
                     editingItem: $editingItem,
                     onSave: {
                         if let editingItem = editingItem {
@@ -1302,6 +1387,7 @@ struct EntryDetailView: View {
         itemMoney = ""
         itemAmount = "1"
         itemDescription = ""
+        itemPayed = false
         editingItem = nil
         showingAddItem = true
     }
@@ -1310,6 +1396,7 @@ struct EntryDetailView: View {
         itemMoney = String(format: "%.2f", item.money)
         itemAmount = item.amount?.description ?? ""
         itemDescription = item.itemDescription
+        itemPayed = item.payed ?? false
         editingItem = item
         showingAddItem = true
     }
@@ -1338,7 +1425,9 @@ struct EntryDetailView: View {
                 money: money,
                 amount: amount,
                 itemDescription: itemDescription,
-                entryId: entry.id
+                entryId: entry.id,
+                position: nil,
+                payed: itemPayed
             )
             modelContext.insert(newItem)
             
@@ -1353,6 +1442,7 @@ struct EntryDetailView: View {
         itemMoney = ""
         itemAmount = ""
         itemDescription = ""
+        itemPayed = false
     }
     
     private func updateItem(_ item: Item) {
@@ -1368,6 +1458,7 @@ struct EntryDetailView: View {
             item.money = money
             item.amount = amount
             item.itemDescription = itemDescription
+            item.payed = itemPayed
             
             do {
                 try modelContext.save()
@@ -1380,6 +1471,7 @@ struct EntryDetailView: View {
         itemMoney = ""
         itemAmount = ""
         itemDescription = ""
+        itemPayed = false
         editingItem = nil
     }
     
@@ -1432,9 +1524,17 @@ struct ItemRowView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.itemDescription)
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                HStack(spacing: 4) {
+                    Text(item.itemDescription)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    if item.payed != true {
+                        Text("(Pendiente)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
                 
                 if let amount = item.amount {
                     Text("Cantidad: \(amount)")
@@ -1445,8 +1545,6 @@ struct ItemRowView: View {
             
             Spacer()
             
-            // Color the amount based on entry type (red for expenses, green for income)
-            let amountColor = entry.type ? Color.green : Color.red
             // Get currency from home group
             let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
             let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
@@ -1454,7 +1552,7 @@ struct ItemRowView: View {
             if item.money > 0 {
                 Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
                     .font(.headline)
-                    .foregroundColor(amountColor)
+                    .foregroundColor(item.payed != true ? .orange : (entry.type ? Color.green : Color.red))
             } else {
                 Text("Sin precio")
                     .font(.caption)
@@ -1474,6 +1572,7 @@ struct AddItemSheet: View {
     @Binding var itemMoney: String
     @Binding var itemAmount: String
     @Binding var itemDescription: String
+    @Binding var itemPayed: Bool
     @Binding var editingItem: Item?
     var onSave: () -> Void
     @FocusState private var focusedField: Field?
@@ -1567,6 +1666,29 @@ struct AddItemSheet: View {
                         )
                         .keyboardType(.numberPad)
                         .focused($focusedField, equals: .amount)
+                }
+                .padding(.horizontal)
+                
+                // Payed Section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Pagado")
+                        .font(.headline)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    HStack {
+                        Text(itemPayed ? "Sí" : "No")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Toggle("", isOn: $itemPayed)
+                            .toggleStyle(SwitchToggleStyle(tint: .green))
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(.systemGray4), lineWidth: 1)
+                    )
                 }
                 .padding(.horizontal)
                 
@@ -1670,7 +1792,7 @@ struct CategoryManagementSheet: View {
         return grouped.map { category, categoryEntries in
             let totalSpent = categoryEntries.reduce(0.0) { total, entry in
                 let items = allItems.filter { $0.entryId == entry.id }
-                let entryTotal = items.reduce(0.0) { $0 + $1.money }
+                let entryTotal = items.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
                 return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
             }
             return CategoryStats(
@@ -2647,7 +2769,7 @@ struct AppInfoSheet: View {
                             Text("Versión")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text("1.2.1")
+                            Text("1.3.0")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)

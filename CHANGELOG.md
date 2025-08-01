@@ -5,6 +5,126 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2025-07-30
+
+### Added
+- **Payment Status Icons**:
+  - Visual indicators for entry payment status in entry rows
+  - Green checkmark (✅) for fully paid entries
+  - Orange triangle (⚠️) for entries with pending payments
+  - Orange circle (🟠) for partially paid entries
+  - Icons positioned next to category badges for better visual integration
+- **Enhanced Payment Status Display**:
+  - Clear distinction between paid and unpaid items
+  - Shows total paid amount and pending amounts separately
+  - "Items pendientes" label for unpaid items with 0.00 price
+  - Consistent color coding: green for paid, orange for pending
+
+### Changed
+- **Entry Row Layout**:
+  - Payment status icons moved next to category badges
+  - Smaller icon size (caption) for better visual balance
+  - No icons shown when entry has no items (cleaner interface)
+  - Better visual hierarchy with grouped status indicators
+- **Payment Status Logic**:
+  - Optional `payed` property to handle existing data without payment status
+  - Backward compatibility with items that don't have payment information
+  - Default behavior treats items without payment status as pending
+  - Improved handling of items with 0.00 price
+- **Total Amount Display**:
+  - Always shows price for paid items (even if 0.00)
+  - Separate display for paid and pending amounts
+  - Clear visual distinction between payment status and monetary value
+  - Consistent formatting across all entry types
+
+### Technical
+- **Data Model Updates**:
+  - Changed `payed` property from `Bool` to `Bool?` for backward compatibility
+  - Updated all payment status checks to handle optional values
+  - Maintained existing data integrity while adding new functionality
+- **Payment Status Computation**:
+  - Enhanced `paymentStatus` computed property with clear logic
+  - Proper handling of items with `nil` payment status
+  - Consistent icon and color assignment based on payment state
+- **UI Component Updates**:
+  - Added `paymentStatusIconSmall` for compact display
+  - Conditional icon display based on item presence
+  - Improved visual integration with existing category badges
+
+### User Experience
+- **Visual Payment Tracking**: Clear indicators for payment status at a glance
+- **Consistent Interface**: Payment icons integrate seamlessly with existing design
+- **Backward Compatibility**: Existing data works without issues
+- **Clean Layout**: No unnecessary icons when entries have no items
+- **Clear Information**: Distinction between payment status and monetary amounts
+
+### Benefits
+- **Quick Status Assessment**: Instantly see which entries are paid or pending
+- **Better Organization**: Visual grouping of related information
+- **Data Safety**: Existing data remains intact and functional
+- **Improved Clarity**: Clear separation between payment status and amounts
+- **Enhanced Workflow**: Better visual feedback for payment management
+
+## [1.3.0] - 2025-07-30
+
+### Added
+- **Advanced Options Collapsible Section**:
+  - Moved date, category, group, and type fields into collapsible "Opciones Avanzadas" section
+  - Reduces form complexity and makes entry creation less overwhelming
+  - Smooth animation when expanding/collapsing advanced options
+  - Gear icon with chevron indicator for intuitive interaction
+- **Simplified Entry Form**:
+  - Main form now only shows essential fields: description and price
+  - Advanced options are hidden by default but easily accessible
+  - Better focus on primary information needed for quick entry creation
+  - Improved user experience for frequent entry creation
+
+### Changed
+- **Form Layout Restructuring**:
+  - Date selection moved to advanced options section
+  - Category selection moved to advanced options section
+  - Home group selection moved to advanced options section
+  - Entry type selection moved to advanced options section
+  - Main form now focuses on description and optional price
+- **Advanced Options Design**:
+  - Collapsible section with gear icon and "Opciones Avanzadas" label
+  - Smooth expand/collapse animation with `.easeInOut(duration: 0.3)`
+  - Visual chevron indicator showing expand/collapse state
+  - Subtle background color for expanded content area
+- **Default Values**:
+  - Date defaults to current date
+  - Category defaults to "otros" (other)
+  - Group defaults to current group
+  - Type defaults to "gasto" (expense)
+
+### Technical
+- **State Management**:
+  - Added `@State private var showAdvancedOptions: Bool = false` for collapsible section
+  - Maintained all existing functionality while reorganizing UI
+  - Proper animation timing for smooth user experience
+- **UI Architecture**:
+  - Restructured AddEntrySheet to separate essential and advanced fields
+  - Maintained all existing validation and interaction logic
+  - Preserved keyboard navigation and focus management
+- **User Experience**:
+  - Reduced cognitive load for new entry creation
+  - Maintained full functionality for power users
+  - Better balance between simplicity and advanced features
+
+### User Experience
+- **Simplified Workflow**: Quick entry creation with essential fields only
+- **Advanced Access**: Full customization available when needed
+- **Visual Clarity**: Clear separation between basic and advanced options
+- **Smooth Interactions**: Animated transitions for better feedback
+- **Intuitive Design**: Gear icon clearly indicates advanced functionality
+
+### Benefits
+- **Faster Entry Creation**: Users can quickly add entries with minimal input
+- **Reduced Overwhelm**: Less visual clutter in the main form
+- **Flexible Usage**: Advanced users can still access all customization options
+- **Better Onboarding**: New users see a simpler, less intimidating interface
+- **Maintained Functionality**: All existing features remain fully accessible
+
 ## [1.2.4] - 2025-07-30
 
 ### Added

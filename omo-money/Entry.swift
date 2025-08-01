@@ -51,13 +51,17 @@ final class Item: Identifiable {
     var amount: Int?
     var itemDescription: String
     var entryId: String
+    var position: Int?
+    var payed: Bool?
 
-    init(id: String = UUID().uuidString, money: Double, amount: Int? = nil, itemDescription: String, entryId: String) {
+    init(id: String = UUID().uuidString, money: Double, amount: Int? = nil, itemDescription: String, entryId: String, position: Int? = nil, payed: Bool? = nil) {
         self.id = id
         self.money = money
         self.amount = amount
         self.itemDescription = itemDescription
         self.entryId = entryId
+        self.position = position
+        self.payed = payed
     }
 }
 
