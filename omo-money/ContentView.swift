@@ -14,6 +14,8 @@ struct ContentView: View {
     @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
     @Query(sort: \Entry.date, order: .reverse) private var entries: [Entry]
     @Query private var allItems: [Item]
+    @Query private var users: [User]
+    @Query private var homeGroupUsers: [HomeGroupUser]
     
     @State private var selectedHomeGroupId: String? = nil
     @State private var showingAddEntry = false
@@ -137,23 +139,38 @@ struct ContentView: View {
             .sorted { $0.date > $1.date }
     }
     
+    // Get current user (assuming first user for now)
+    var currentUser: User? {
+        return users.first
+    }
+    
+    // Get groups that the current user belongs to
+    var userHomeGroups: [HomeGroup] {
+        guard let currentUser = currentUser else { return [] }
+        
+        let userGroupRelations = homeGroupUsers.filter { $0.user?.id == currentUser.id }
+        let userGroupIds = userGroupRelations.compactMap { $0.homeGroup?.id }
+        
+        return homeGroups.filter { userGroupIds.contains($0.id) }
+    }
+    
     // Get current home group
     var currentHomeGroup: HomeGroup? {
         guard let selectedHomeGroupId = selectedHomeGroupId else { return nil }
-        return homeGroups.first { $0.id == selectedHomeGroupId }
+        return userHomeGroups.first { $0.id == selectedHomeGroupId }
     }
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // Home Group and Month/Year Selector
-                if !homeGroups.isEmpty {
+                if !userHomeGroups.isEmpty {
                     HStack {
                         // Left side: Group and Filters
                         HStack {
                             // Home Group Dropdown
                             Menu {
-                                ForEach(homeGroups, id: \.id) { homeGroup in
+                                ForEach(userHomeGroups, id: \.id) { homeGroup in
                                     Button(action: {
                                         selectedHomeGroupId = homeGroup.id
                                     }) {
@@ -357,7 +374,7 @@ struct ContentView: View {
                         .padding(.bottom, 8)
                     }
                 
-                if homeGroups.isEmpty {
+                if userHomeGroups.isEmpty {
                     // Show welcome screen for first time
                     VStack(spacing: 20) {
                         Image(systemName: "house.fill")
@@ -612,8 +629,8 @@ struct ContentView: View {
             }
             .onAppear {
                 // Auto-select the first home group if none is selected
-                if selectedHomeGroupId == nil && !homeGroups.isEmpty {
-                    selectedHomeGroupId = homeGroups.first?.id
+                if selectedHomeGroupId == nil && !userHomeGroups.isEmpty {
+                    selectedHomeGroupId = userHomeGroups.first?.id
                 }
             }
         }
@@ -708,6 +725,8 @@ struct ContentView: View {
             }
         }
     }
+    
+
 }
 
 struct EntryRowView: View {
@@ -1982,11 +2001,24 @@ struct HomeGroupManagementSheet: View {
     let modelContext: ModelContext
     @Binding var selectedHomeGroupId: String?
     
+    @Query private var users: [User]
+    @Query private var homeGroupUsers: [HomeGroupUser]
+    
     @State private var showingAddHomeGroup = false
     @State private var newHomeGroupName = ""
     @State private var newHomeGroupCurrency = Currency.usd.rawValue
     @State private var showingDeleteAlert = false
     @State private var groupsToDelete: [HomeGroup] = []
+    
+    // Get groups that the current user belongs to
+    var userHomeGroups: [HomeGroup] {
+        guard let currentUser = users.first else { return [] }
+        
+        let userGroupRelations = homeGroupUsers.filter { $0.user?.id == currentUser.id }
+        let userGroupIds = userGroupRelations.compactMap { $0.homeGroup?.id }
+        
+        return homeGroups.filter { userGroupIds.contains($0.id) }
+    }
     
     var body: some View {
         NavigationView {
@@ -2017,7 +2049,7 @@ struct HomeGroupManagementSheet: View {
                 .padding()
                 .background(Color(.systemBackground))
                 
-                if homeGroups.isEmpty {
+                if userHomeGroups.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "house")
                             .font(.system(size: 60))
@@ -2050,7 +2082,7 @@ struct HomeGroupManagementSheet: View {
                     .padding()
                 } else {
                     List {
-                        ForEach(homeGroups, id: \.id) { homeGroup in
+                        ForEach(userHomeGroups, id: \.id) { homeGroup in
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(homeGroup.name)
@@ -2132,8 +2164,19 @@ struct HomeGroupManagementSheet: View {
             )
             modelContext.insert(newHomeGroup)
             
+            // Associate the new group with the current user
+            if let currentUser = users.first {
+                let homeGroupUser = HomeGroupUser(
+                    dateJoined: Date(),
+                    isAdmin: true // User who creates the group is admin
+                )
+                homeGroupUser.user = currentUser
+                homeGroupUser.homeGroup = newHomeGroup
+                modelContext.insert(homeGroupUser)
+            }
+            
             // If this is the first home group, select it automatically
-            if homeGroups.isEmpty {
+            if userHomeGroups.isEmpty {
                 selectedHomeGroupId = newHomeGroup.id
             }
             
@@ -2157,7 +2200,7 @@ struct HomeGroupManagementSheet: View {
             
             // If we deleted the selected group, select the first available one
             if groups.contains(where: { $0.id == selectedHomeGroupId }) {
-                selectedHomeGroupId = homeGroups.first { !groups.contains($0) }?.id
+                selectedHomeGroupId = userHomeGroups.first { !groups.contains($0) }?.id
             }
             
             do {
@@ -2906,3 +2949,5 @@ extension DateFormatter {
         return formatter
     }()
 }
+
+

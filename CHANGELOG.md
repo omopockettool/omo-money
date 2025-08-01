@@ -5,6 +5,95 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-08-01
+
+### Added
+- **User Management System**:
+  - New `User` entity with name, email, and creation date
+  - User authentication and identification system
+  - Support for multiple users in the same app instance
+  - User-specific group access and permissions
+- **HomeGroupUser Relationship Entity**:
+  - Intermediate entity linking users to home groups
+  - `dateJoined` property to track when user joined a group
+  - `isAdmin` property for permission management
+  - Foundation for future collaboration features
+- **Enhanced Data Architecture**:
+  - Separated entities into individual Swift files for better organization
+  - `User.swift` - User management entity
+  - `HomeGroup.swift` - Home group entity with user relationships
+  - `HomeGroupUser.swift` - User-group relationship entity
+  - `Entry.swift` - Entry entity (simplified)
+  - `Item.swift` - Item entity (simplified)
+  - `Enums.swift` - Centralized enumerations
+- **Permission System Foundation**:
+  - Admin permissions for group creators
+  - User-group relationship tracking
+  - Date-based membership tracking
+  - Scalable architecture for future collaboration features
+
+### Changed
+- **Data Model Restructuring**:
+  - Moved from single `Entry.swift` file to modular entity structure
+  - Enhanced `HomeGroup` entity with `homeGroupUsers` relationship
+  - Updated `User` entity with `homeGroupUsers` relationship
+  - Improved data organization and maintainability
+- **User Interface Updates**:
+  - Group selection now filters based on user membership
+  - Only shows groups that the current user belongs to
+  - Automatic user association when creating new groups
+  - User-specific data isolation and access control
+- **Entity Relationships**:
+  - User ↔ HomeGroupUser ↔ HomeGroup (many-to-many through intermediate)
+  - HomeGroup → Entry (one-to-many)
+  - Entry → Item (one-to-many)
+  - Proper cascade deletion rules for data integrity
+
+### Technical
+- **SwiftData Architecture**:
+  - Modular entity structure with separate files
+  - Proper relationship management with intermediate entities
+  - Enhanced query optimization for user-specific data
+  - Improved data model scalability
+- **User Management**:
+  - Automatic user creation and group association
+  - User-specific group filtering and access control
+  - Admin permission assignment for group creators
+  - Foundation for multi-user collaboration
+- **Data Integrity**:
+  - Proper cascade deletion rules
+  - Relationship validation and consistency
+  - User data isolation and security
+  - Scalable permission system architecture
+
+### Features
+- **Multi-User Support**: Foundation for multiple users in the same app
+- **Permission Management**: Admin rights for group creators
+- **User-Group Relationships**: Track membership and join dates
+- **Data Isolation**: Users only see their associated groups
+- **Collaboration Ready**: Architecture prepared for future sharing features
+- **Modular Code**: Better organization and maintainability
+
+### User Experience
+- **Personalized Interface**: Users only see their relevant groups
+- **Automatic Setup**: New groups are automatically associated with the creator
+- **Clean Organization**: Better code structure and maintainability
+- **Future-Ready**: Foundation for collaboration and sharing features
+
+### Architecture Improvements
+- **Modular Design**: Separated entities into individual files
+- **Relationship Management**: Proper many-to-many relationships through intermediate entities
+- **Permission System**: Scalable admin and user permission framework
+- **Data Isolation**: User-specific data access and filtering
+- **Collaboration Foundation**: Ready for future multi-user features
+
+### Benefits
+- **Better Code Organization**: Modular entity structure
+- **Scalable Architecture**: Foundation for future features
+- **User Data Security**: Proper isolation and access control
+- **Collaboration Ready**: Prepared for sharing and team features
+- **Maintainable Code**: Cleaner, more organized codebase
+
 ## [1.3.1] - 2025-07-30
 
 ### Added
