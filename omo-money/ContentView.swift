@@ -163,6 +163,12 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                // Add extra spacing when search is active to prevent overlap with navigation bar
+                if isSearchActive {
+                    Spacer()
+                        .frame(height: 16)
+                }
+                
                 // Home Group and Month/Year Selector
                 if !userHomeGroups.isEmpty {
                     HStack {
@@ -282,7 +288,7 @@ struct ContentView: View {
                 if isSearchActive {
                     HStack {
                         HStack(spacing: 8) {
-                            TextField("Buscar en entries e items...", text: $searchText)
+                            TextField("Buscar en entradas y sus items...", text: $searchText)
                                 .textFieldStyle(PlainTextFieldStyle())
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
@@ -427,6 +433,8 @@ struct ContentView: View {
                 } else if filteredEntries.isEmpty {
                     // Check if this is due to search or actually no entries
                     let hasEntriesInGroup = entries.contains { $0.homeGroupId == selectedHomeGroupId }
+                    let hasEntriesInCurrentMonth = !filteredEntries.isEmpty
+                    let isGroupNew = !hasEntriesInGroup
                     
                     VStack {
                         if hasEntriesInGroup && !searchText.isEmpty {
@@ -466,8 +474,8 @@ struct ContentView: View {
                             }
                             .padding(.horizontal)
                             .padding(.vertical, 40)
-                        } else {
-                            // No entries in group
+                        } else if isGroupNew {
+                            // New group - show welcome message
                             VStack(spacing: 20) {
                                 Image(systemName: "dollarsign.circle.fill")
                                     .font(.system(size: 60))
@@ -489,6 +497,38 @@ struct ContentView: View {
                                     HStack {
                                         Image(systemName: "plus.circle.fill")
                                         Text("Agregar Primer Entry")
+                                    }
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .background(Color.red)
+                                    .cornerRadius(10)
+                                }
+                            }
+                            .padding()
+                        } else {
+                            // Group has entries in other months but not in current month
+                            VStack(spacing: 20) {
+                                Image(systemName: "calendar.badge.plus")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.blue)
+                                
+                                Text("Sin Entradas este Mes")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(Color(.systemGray))
+                                
+                                Text("No hay entradas registrados en \(selectedMonthYear.formatted(.dateTime.month(.wide).year()))")
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal)
+                                
+                                Button(action: {
+                                    prepareForNewEntry()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "plus.circle.fill")
+                                        Text("Agregar Entrada")
                                     }
                                     .font(.headline)
                                     .foregroundColor(.white)
