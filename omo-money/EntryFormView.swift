@@ -97,33 +97,37 @@ struct EntryFormView: View {
                 
                 // Advanced Options Section
                 VStack(alignment: .leading, spacing: 8) {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            showAdvancedOptions.toggle()
+                    // Only show collapsible advanced options for new entries
+                    if !isEditing {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                showAdvancedOptions.toggle()
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "gearshape")
+                                    .foregroundColor(.gray)
+                                Text("Opciones Avanzadas")
+                                    .font(.headline)
+                                    .foregroundColor(Color(.systemGray))
+                                Spacer()
+                                Image(systemName: showAdvancedOptions ? "chevron.up" : "chevron.down")
+                                    .foregroundColor(.gray)
+                                    .font(.caption)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                            )
                         }
-                    }) {
-                        HStack {
-                            Image(systemName: "gearshape")
-                                .foregroundColor(.gray)
-                            Text("Opciones Avanzadas")
-                                .font(.headline)
-                                .foregroundColor(Color(.systemGray))
-                            Spacer()
-                            Image(systemName: showAdvancedOptions ? "chevron.up" : "chevron.down")
-                                .foregroundColor(.gray)
-                                .font(.caption)
-                        }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.systemGray4), lineWidth: 1)
-                        )
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
                     
-                    if showAdvancedOptions {
+                    // Show advanced options when editing or when expanded for new entries
+                    if isEditing || showAdvancedOptions {
                         VStack(spacing: 16) {
                             // Date Section
                             VStack(alignment: .leading, spacing: 8) {
@@ -329,10 +333,10 @@ struct EntryFormView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 8)
-                        .background(Color(.systemGray6).opacity(0.5))
-                        .cornerRadius(8)
+                        .padding(.horizontal, isEditing ? 0 : 4)
+                        .padding(.vertical, isEditing ? 0 : 8)
+                        .background(isEditing ? Color.clear : Color(.systemGray6).opacity(0.5))
+                        .cornerRadius(isEditing ? 0 : 8)
                     }
                 }
                 .padding(.horizontal)
@@ -502,33 +506,37 @@ struct AddEntrySheet: View {
                     
                     // Advanced Options Section
                     VStack(alignment: .leading, spacing: 8) {
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.5)) {
-                                showAdvancedOptions.toggle()
+                        // Only show collapsible advanced options for new entries
+                        if !isEditing {
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    showAdvancedOptions.toggle()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "gearshape")
+                                        .foregroundColor(.gray)
+                                    Text("Opciones Avanzadas")
+                                        .font(.headline)
+                                        .foregroundColor(Color(.systemGray))
+                                    Spacer()
+                                    Image(systemName: showAdvancedOptions ? "chevron.up" : "chevron.down")
+                                        .foregroundColor(.gray)
+                                        .font(.caption)
+                                }
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(.systemGray4), lineWidth: 1)
+                                )
                             }
-                        }) {
-                            HStack {
-                                Image(systemName: "gearshape")
-                                    .foregroundColor(.gray)
-                                Text("Opciones Avanzadas")
-                                    .font(.headline)
-                                    .foregroundColor(Color(.systemGray))
-                                Spacer()
-                                Image(systemName: showAdvancedOptions ? "chevron.up" : "chevron.down")
-                                    .foregroundColor(.gray)
-                                    .font(.caption)
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(.systemGray4), lineWidth: 1)
-                            )
+                            .buttonStyle(PlainButtonStyle())
                         }
-                        .buttonStyle(PlainButtonStyle())
                         
-                        if showAdvancedOptions {
+                        // Show advanced options when editing or when expanded for new entries
+                        if isEditing || showAdvancedOptions {
                             VStack(spacing: 16) {
                                 // Date Section
                                 VStack(alignment: .leading, spacing: 8) {

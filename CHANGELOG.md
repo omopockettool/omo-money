@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clear error messages and visual indicators
   - Improved user guidance through form completion process
   - Better handling of required vs optional fields
+- **Smart Advanced Options Behavior**:
+  - Advanced options are now always visible when editing entries
+  - Collapsible behavior only applies when creating new entries
+  - All fields (date, category, group, type) are directly accessible when editing
+  - Improved user experience for entry modification
 
 ### Changed
 - **Form Navigation Flow**:
@@ -40,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better visual feedback for form completion status
   - Improved error handling and user guidance
   - Enhanced overall form usability
+- **Advanced Options UX**:
+  - Collapsible advanced options only for new entry creation
+  - Direct field access when editing existing entries
+  - Cleaner interface for entry modification
+  - Better distinction between creation and editing workflows
 
 ### Technical
 - **Navigation Architecture**:
@@ -57,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced error message display and handling
   - Improved form completion tracking
   - Better user guidance through validation process
+- **Conditional UI Logic**:
+  - Advanced options visibility based on `isEditing` state
+  - Different styling for creation vs editing modes
+  - Improved form layout management
+  - Better state handling for different form contexts
 
 ### User Experience
 - **Intuitive Form Flow**: Clear step-by-step progression through entry creation
@@ -64,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Improved Validation**: Real-time feedback and clear error messages
 - **Better Accessibility**: Enhanced keyboard navigation and screen reader support
 - **Smoother Interactions**: Improved transitions and visual feedback
+- **Smart Advanced Options**: Context-aware behavior for creation vs editing
 
 ### Benefits
 - **Better Form Experience**: Navigation-based forms are more intuitive and accessible
@@ -71,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Improved Validation**: Users get immediate feedback on form completion
 - **Better Accessibility**: Enhanced support for users with accessibility needs
 - **Professional Interface**: More polished and user-friendly form interactions
+- **Optimized Editing**: Direct access to all fields when modifying entries
 
 ## [1.4.0] - 2025-08-01
 
