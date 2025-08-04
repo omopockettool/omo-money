@@ -18,7 +18,6 @@ struct ContentView: View {
     @Query private var homeGroupUsers: [HomeGroupUser]
     
     @State private var selectedHomeGroupId: String? = nil
-    @State private var showingAddEntry = false
     @State private var selectedEntry: Entry? = nil
     @State private var entryTitle = ""
     @State private var entryDate = Date()
@@ -43,6 +42,13 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var isSearchActive = false
     @FocusState private var isSearchFieldFocused: Bool
+    
+    // Navigation state for entry form
+    @State private var navigateToAddEntry = false
+    @State private var navigateToEditEntry = false
+    
+    // Navigation state for entry detail
+    @State private var navigateToEntryDetail = false
     
     // Helper function to convert displayName to rawValue
     private func getCategoryRawValue(from displayName: String) -> String {
@@ -560,7 +566,9 @@ struct ContentView: View {
                                             .padding(.vertical, 12)
                                     }
                                     .onTapGesture {
+                                        // Store the selected entry for navigation
                                         selectedEntry = entry
+                                        navigateToEntryDetail = true
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .listRowInsets(EdgeInsets())
@@ -614,25 +622,62 @@ struct ContentView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingAddEntry) {
-                AddEntrySheet(
-                    isPresented: $showingAddEntry,
-                    entryTitle: $entryTitle,
-                    entryDate: $entryDate,
-                    entryCategory: $entryCategory,
-                    entryType: $entryType,
-                    entryHomeGroupId: $entryHomeGroupId,
-                    entryMoney: $entryMoney,
-                    isEditing: editingEntry != nil,
-                    onSave: {
-                        if let editingEntry = editingEntry {
-                            updateEntry(editingEntry)
-                        } else {
-                            addEntry()
+            .background(
+                NavigationLink(
+                    destination: EntryFormView(
+                        entryTitle: $entryTitle,
+                        entryDate: $entryDate,
+                        entryCategory: $entryCategory,
+                        entryType: $entryType,
+                        entryHomeGroupId: $entryHomeGroupId,
+                        entryMoney: $entryMoney,
+                        isEditing: editingEntry != nil,
+                        onSave: {
+                            if let editingEntry = editingEntry {
+                                updateEntry(editingEntry)
+                            } else {
+                                addEntry()
+                            }
                         }
-                    }
-                )
-            }
+                    )
+                    .onDisappear {
+                        // Reset navigation state when view disappears
+                        navigateToAddEntry = false
+                        navigateToEditEntry = false
+                        navigateToEntryDetail = false
+                    },
+                    isActive: $navigateToAddEntry
+                ) {
+                    EmptyView()
+                }
+            )
+            .background(
+                NavigationLink(
+                    destination: EntryFormView(
+                        entryTitle: $entryTitle,
+                        entryDate: $entryDate,
+                        entryCategory: $entryCategory,
+                        entryType: $entryType,
+                        entryHomeGroupId: $entryHomeGroupId,
+                        entryMoney: $entryMoney,
+                        isEditing: true,
+                        onSave: {
+                            if let editingEntry = editingEntry {
+                                updateEntry(editingEntry)
+                            }
+                        }
+                    )
+                    .onDisappear {
+                        // Reset navigation state when view disappears
+                        navigateToAddEntry = false
+                        navigateToEditEntry = false
+                        navigateToEntryDetail = false
+                    },
+                    isActive: $navigateToEditEntry
+                ) {
+                    EmptyView()
+                }
+            )
             .sheet(isPresented: $showingCategoryManagement) {
                 CategoryManagementSheet(
                     isPresented: $showingCategoryManagement,
@@ -661,9 +706,18 @@ struct ContentView: View {
                     selectedCategory: $selectedCategory
                 )
             }
-            .sheet(item: $selectedEntry) { entry in
-                EntryDetailView(entry: entry)
-            }
+            .background(
+                Group {
+                    if let selectedEntry = selectedEntry {
+                        NavigationLink(
+                            destination: EntryDetailNavigationView(entry: selectedEntry),
+                            isActive: $navigateToEntryDetail
+                        ) {
+                            EmptyView()
+                        }
+                    }
+                }
+            )
             .sheet(isPresented: $showingAppInfo) {
                 AppInfoSheet(isPresented: $showingAppInfo)
             }
@@ -684,7 +738,7 @@ struct ContentView: View {
         entryHomeGroupId = selectedHomeGroupId ?? ""
         entryMoney = ""
         editingEntry = nil
-        showingAddEntry = true
+        navigateToAddEntry = true
     }
     
     private func prepareForEditEntry(_ entry: Entry) {
@@ -696,7 +750,7 @@ struct ContentView: View {
         // For editing, we don't pre-fill the money field
         entryMoney = ""
         editingEntry = entry
-        showingAddEntry = true
+        navigateToEditEntry = true
     }
     
     private func addEntry() {
@@ -882,945 +936,13 @@ struct EntryRowView: View {
     }
 }
 
-struct AddEntrySheet: View {
-    @Environment(\.modelContext) private var modelContext
-    @Binding var isPresented: Bool
-    @Binding var entryTitle: String
-    @Binding var entryDate: Date
-    @Binding var entryCategory: String
-    @Binding var entryType: Bool
-    @Binding var entryHomeGroupId: String
-    @Binding var entryMoney: String
-    var isEditing: Bool = false
-    var onSave: () -> Void
-    
-    @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
-    
-    @State private var showDatePicker: Bool = false
-    @State private var dateSelected: Bool = false
-    @State private var showAdvancedOptions: Bool = false
-    @FocusState private var focusedField: Field?
-    
-    // Computed property to check if the form is valid
-    private var isFormValid: Bool {
-        !entryTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-    
-    enum Field {
-        case title
-        case money
-    }
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Entry Title Section
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Descripción")
-                            .font(.headline)
-                            .foregroundColor(Color(.systemGray))
-                        
-                        TextField("Ej: Compra del super, Gimnasio, etc.", text: $entryTitle)
-                            .padding(8)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(.systemGray4), lineWidth: 1)
-                            )
-                            .focused($focusedField, equals: .title)
-                    }
-                    .padding(.horizontal)
-                    
-                    // Money Section (only show for new entries, not editing)
-                    if !isEditing {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Precio (opcional)")
-                                .font(.headline)
-                                .foregroundColor(Color(.systemGray))
-                            
-                                                    TextField("0.00", text: $entryMoney)
-                            .padding(8)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(.systemGray4), lineWidth: 1)
-                            )
-                            .keyboardType(.decimalPad)
-                            .focused($focusedField, equals: .money)
-                            .onChange(of: entryMoney) { _, newValue in
-                                // Convertir coma a punto para decimales
-                                let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
-                                if convertedValue != newValue {
-                                    entryMoney = convertedValue
-                                    return
-                                }
-                                
-                                // Validar formato de dinero
-                                let validatedValue = validateMoneyInput(convertedValue)
-                                if validatedValue != convertedValue {
-                                    entryMoney = validatedValue
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Advanced Options Section
-                    VStack(alignment: .leading, spacing: 8) {
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.5)) {
-                                showAdvancedOptions.toggle()
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "gearshape")
-                                    .foregroundColor(.gray)
-                                Text("Opciones Avanzadas")
-                                    .font(.headline)
-                                    .foregroundColor(Color(.systemGray))
-                                Spacer()
-                                Image(systemName: showAdvancedOptions ? "chevron.up" : "chevron.down")
-                                    .foregroundColor(.gray)
-                                    .font(.caption)
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(.systemGray4), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        if showAdvancedOptions {
-                            VStack(spacing: 16) {
-                                // Date Section
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Fecha")
-                                        .font(.headline)
-                                        .foregroundColor(Color(.systemGray))
-                                    
-                                    Button(action: {
-                                        // Cerrar el teclado antes de mostrar el date picker
-                                        focusedField = nil
-                                        dateSelected = false
-                                        showDatePicker.toggle()
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "calendar")
-                                                .foregroundColor(.gray)
-                                            Text(entryDate.formatted(date: .abbreviated, time: .omitted))
-                                                .foregroundColor(.primary)
-                                            Spacer()
-                                            Image(systemName: "chevron.right")
-                                                .foregroundColor(.gray)
-                                                .font(.caption)
-                                        }
-                                        .padding()
-                                        .background(Color(.systemGray6))
-                                        .cornerRadius(8)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color(.systemGray4), lineWidth: 1)
-                                        )
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                    
-                                    if showDatePicker {
-                                        VStack(spacing: 8) {
-                                            DatePicker("", selection: $entryDate, displayedComponents: .date)
-                                                .datePickerStyle(.graphical)
-                                                .labelsHidden()
-                                                .onChange(of: entryDate) { _, _ in
-                                                    // Mark that a date has been selected
-                                                    dateSelected = true
-                                                }
-                                            
-                                            if dateSelected {
-                                                Button(action: {
-                                                    showDatePicker = false
-                                                    dateSelected = false
-                                                }) {
-                                                    Text("Confirmar fecha")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(.white)
-                                                        .padding(.horizontal, 16)
-                                                        .padding(.vertical, 8)
-                                                        .background(Color.blue)
-                                                        .cornerRadius(8)
-                                                }
-                                            }
-                                        }
-                                        .padding()
-                                        .background(Color(.systemGray6))
-                                        .cornerRadius(8)
-                                    }
-                                }
-                                
-                                // Category Section
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Categoría")
-                                        .font(.headline)
-                                        .foregroundColor(Color(.systemGray))
-                                    
-                                    Menu {
-                                        ForEach(EntryCategory.allCases, id: \.self) { category in
-                                            Button(action: {
-                                                entryCategory = category.rawValue
-                                            }) {
-                                                HStack {
-                                                    Circle()
-                                                        .fill(categoryColor(category.rawValue))
-                                                        .frame(width: 12, height: 12)
-                                                    Text(category.displayName)
-                                                    if entryCategory == category.rawValue {
-                                                        Image(systemName: "checkmark")
-                                                            .foregroundColor(.green)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Circle()
-                                                .fill(categoryColor(entryCategory))
-                                                .frame(width: 12, height: 12)
-                                            Text(EntryCategory(rawValue: entryCategory)?.displayName ?? "Seleccionar Categoría")
-                                                .foregroundColor(.primary)
-                                            Spacer()
-                                            Image(systemName: "chevron.down")
-                                                .foregroundColor(.gray)
-                                        }
-                                        .padding()
-                                        .background(Color(.systemGray6))
-                                        .cornerRadius(8)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color(.systemGray4), lineWidth: 1)
-                                        )
-                                    }
-                                }
-                                
-                                // Home Group Section (only show if editing or multiple home groups exist)
-                                if isEditing || homeGroups.count > 1 {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Grupo")
-                                            .font(.headline)
-                                            .foregroundColor(Color(.systemGray))
-                                        
-                                        Menu {
-                                            ForEach(homeGroups, id: \.id) { homeGroup in
-                                                Button(action: {
-                                                    entryHomeGroupId = homeGroup.id
-                                                }) {
-                                                    HStack {
-                                                        Text(homeGroup.name)
-                                                        if entryHomeGroupId == homeGroup.id {
-                                                            Image(systemName: "checkmark")
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        } label: {
-                                            HStack {
-                                                let selectedGroup = homeGroups.first { $0.id == entryHomeGroupId }
-                                                Text(selectedGroup?.name ?? "Seleccionar Grupo")
-                                                    .foregroundColor(.primary)
-                                                Spacer()
-                                                Image(systemName: "chevron.down")
-                                                    .foregroundColor(.gray)
-                                            }
-                                            .padding()
-                                            .background(Color(.systemGray6))
-                                            .cornerRadius(8)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color(.systemGray4), lineWidth: 1)
-                                            )
-                                        }
-                                    }
-                                }
-                                
-                                // Type Section
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Tipo")
-                                        .font(.headline)
-                                        .foregroundColor(Color(.systemGray))
-                                    
-                                    HStack(spacing: 12) {
-                                        Button(action: {
-                                            entryType = false
-                                        }) {
-                                            HStack {
-                                                Image(systemName: "arrow.down.circle")
-                                                    .foregroundColor(.red)
-                                                Text("Gasto")
-                                                    .foregroundColor(.primary)
-                                                Spacer()
-                                                if !entryType {
-                                                    Image(systemName: "checkmark")
-                                                        .foregroundColor(.green)
-                                                }
-                                            }
-                                            .padding()
-                                            .background(!entryType ? Color.red.opacity(0.1) : Color(.systemGray6))
-                                            .cornerRadius(8)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(!entryType ? Color.red : Color(.systemGray4), lineWidth: 1)
-                                            )
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
-                                        
-                                        // Button(action: {
-                                        //     entryType = true
-                                        // }) {
-                                        //     HStack {
-                                        //         Image(systemName: "arrow.up.circle")
-                                        //             .foregroundColor(.green)
-                                        //         Text("Ingreso")
-                                        //             .foregroundColor(.primary)
-                                        //         Spacer()
-                                        //         if entryType {
-                                        //             Image(systemName: "checkmark")
-                                        //                 .foregroundColor(.green)
-                                        //         }
-                                        //     }
-                                        //     .padding()
-                                        //     .background(entryType ? Color.green.opacity(0.1) : Color(.systemGray6))
-                                        //     .cornerRadius(8)
-                                        //     .overlay(
-                                        //         RoundedRectangle(cornerRadius: 8)
-                                        //             .stroke(entryType ? Color.green : Color(.systemGray4), lineWidth: 1)
-                                        //     )
-                                        // }
-                                        // .buttonStyle(PlainButtonStyle())
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 8)
-                            .background(Color(.systemGray6).opacity(0.5))
-                            .cornerRadius(8)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-                .padding(.vertical)
-            }
-            .navigationTitle(isEditing ? "Editar Entrada" : "Nueva Entrada")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
-                        isPresented = false
-                    }
-                    .foregroundColor(.gray)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Guardar") {
-                        onSave()
-                        isPresented = false
-                    }
-                    .foregroundColor(.red)
-                    .disabled(!isFormValid)
-                }
-                
-                                ToolbarItemGroup(placement: .keyboard) {
-                    // Only show navigation arrows for new entries (not editing)
-                    if !isEditing {
-                        Button(action: {
-                            if focusedField == .money {
-                                focusedField = .title
-                            }
-                        }) {
-                            Image(systemName: "chevron.up")
-                        }
-                        .foregroundColor(.red)
-                        .disabled(focusedField == .title)
-                        
-                        Button(action: {
-                            if focusedField == .title {
-                                focusedField = .money
-                            }
-                        }) {
-                            Image(systemName: "chevron.down")
-                        }
-                        .foregroundColor(.red)
-                        .disabled(focusedField == .money)
-                    }
- 
-                    Spacer()
-                    
-                    Button("Done") {
-                        focusedField = nil
-                    }
-                    .foregroundColor(.red)
-                }
-            }
-        }
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        .onAppear {
-            // Set focus to description field only for new entries, not when editing
-            if !isEditing {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    focusedField = .title
-                }
-            }
-        }
-    }
-    
-    private func categoryColor(_ category: String) -> Color {
-        switch category {
-        case "comida": return .red
-        case "hogar": return .blue
-        case "salud": return .green
-        case "ocio": return .purple
-        case "transporte": return .orange
-        default: return .gray
-        }
-    }
-}
+// AddEntrySheet has been moved to EntryFormView.swift
 
-struct EntryDetailView: View {
-    let entry: Entry
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-    
-    @Query private var allItems: [Item]
-    @State private var showingAddItem = false
-    @State private var showingEditItem = false
-    @State private var showingEditEntry = false
-    @State private var itemMoney = ""
-    @State private var itemAmount = ""
-    @State private var itemDescription = ""
-    @State private var itemPayed = false
-    @State private var editingItem: Item? = nil
-    @State private var entryTitle = ""
-    @State private var entryDate = Date()
-    @State private var entryCategory = ""
-    @State private var entryType = false
-    @State private var entryHomeGroupId = ""
-    @State private var entryMoney = ""
-    @State private var editingEntry: Entry? = nil
-    
-    var items: [Item] {
-        allItems.filter { $0.entryId == entry.id }
-    }
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                if items.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "cart.badge.plus")
-                            .font(.system(size: 60))
-                            .foregroundColor(.red)
-                        
-                        Text("No hay items")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(Color(.systemGray))
-                        
-                        Text("Agrega items a este entry para comenzar")
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        Button(action: {
-                            prepareForNewItem()
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Agregar Primer Item")
-                            }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.red)
-                            .cornerRadius(10)
-                        }
-                    }
-                    .padding()
-                } else {
-                    List {
-                        ForEach(items, id: \.id) { item in
-                            ItemRowView(item: item, entry: entry, onEdit: {
-                                prepareForEditItem(item)
-                            })
-                        }
-                        .onDelete { offsets in
-                            let itemsToDelete = offsets.map { items[$0] }
-                            deleteItems(itemsToDelete)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Button(action: {
-                        prepareForEditEntry(entry)
-                    }) {
-                        HStack(spacing: 4) {
-                            Text(entry.title)
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Image(systemName: "pencil")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cerrar") {
-                        dismiss()
-                    }
-                    .foregroundColor(.gray)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        prepareForNewItem()
-                    }) {
-                        Image(systemName: "plus")
-                            .foregroundColor(.red)
-                    }
-                }
-            }
-            .sheet(isPresented: $showingAddItem) {
-                AddItemSheet(
-                    isPresented: $showingAddItem,
-                    itemMoney: $itemMoney,
-                    itemAmount: $itemAmount,
-                    itemDescription: $itemDescription,
-                    itemPayed: $itemPayed,
-                    editingItem: $editingItem,
-                    onSave: {
-                        if let editingItem = editingItem {
-                            updateItem(editingItem)
-                        } else {
-                            addItem()
-                        }
-                    }
-                )
-                .onDisappear {
-                    editingItem = nil
-                }
-            }
-            .sheet(isPresented: $showingEditEntry) {
-                AddEntrySheet(
-                    isPresented: $showingEditEntry,
-                    entryTitle: $entryTitle,
-                    entryDate: $entryDate,
-                    entryCategory: $entryCategory,
-                    entryType: $entryType,
-                    entryHomeGroupId: $entryHomeGroupId,
-                    entryMoney: $entryMoney,
-                    isEditing: true,
-                    onSave: {
-                        if let editingEntry = editingEntry {
-                            updateEntry(editingEntry)
-                        }
-                    }
-                )
-            }
-        }
-    }
-    
-    private func prepareForNewItem() {
-        itemMoney = ""
-        itemAmount = "1"
-        itemDescription = ""
-        itemPayed = false
-        editingItem = nil
-        showingAddItem = true
-    }
-    
-    private func prepareForEditItem(_ item: Item) {
-        itemMoney = String(format: "%.2f", item.money)
-        itemAmount = item.amount?.description ?? ""
-        itemDescription = item.itemDescription
-        itemPayed = item.payed ?? false
-        editingItem = item
-        showingAddItem = true
-    }
-    
-    private func prepareForEditEntry(_ entry: Entry) {
-        entryTitle = entry.title
-        entryDate = entry.date
-        entryCategory = entry.category
-        entryType = entry.type
-        entryHomeGroupId = entry.homeGroupId
-        editingEntry = entry
-        showingEditEntry = true
-    }
-    
-    private func addItem() {
-        guard !itemDescription.isEmpty else { return }
-        
-        // Use 0 as default money if empty or invalid
-        let money = Double(itemMoney) ?? 0.0
-        
-        // Use 1 as default amount if empty
-        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
-        
-        withAnimation {
-            let newItem = Item(
-                money: money,
-                amount: amount,
-                itemDescription: itemDescription,
-                entryId: entry.id,
-                position: nil,
-                payed: itemPayed
-            )
-            modelContext.insert(newItem)
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error saving item: \(error)")
-            }
-        }
-        
-        // Reset form
-        itemMoney = ""
-        itemAmount = ""
-        itemDescription = ""
-        itemPayed = false
-    }
-    
-    private func updateItem(_ item: Item) {
-        guard !itemDescription.isEmpty else { return }
-        
-        // Use 0 as default money if empty or invalid
-        let money = Double(itemMoney) ?? 0.0
-        
-        // Use 1 as default amount if empty
-        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
-        
-        withAnimation {
-            item.money = money
-            item.amount = amount
-            item.itemDescription = itemDescription
-            item.payed = itemPayed
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error updating item: \(error)")
-            }
-        }
-        
-        // Reset form
-        itemMoney = ""
-        itemAmount = ""
-        itemDescription = ""
-        itemPayed = false
-        editingItem = nil
-    }
-    
-    private func updateEntry(_ entry: Entry) {
-        withAnimation {
-            entry.title = entryTitle
-            entry.date = entryDate
-            entry.category = entryCategory
-            entry.type = entryType
-            entry.homeGroupId = entryHomeGroupId
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error updating entry: \(error)")
-            }
-        }
-        
-        // Reset form
-        entryTitle = ""
-        entryDate = Date()
-        entryCategory = ""
-        entryType = false
-        entryHomeGroupId = ""
-        editingEntry = nil
-    }
-    
-    private func deleteItems(_ items: [Item]) {
-        withAnimation {
-            for item in items {
-                modelContext.delete(item)
-            }
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error deleting items: \(error)")
-            }
-        }
-    }
-}
+// EntryDetailView has been moved to EntryDetailView.swift
 
-struct ItemRowView: View {
-    let item: Item
-    let entry: Entry // Add entry parameter to know the type
-    var onEdit: (() -> Void)?
-    
-    @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 4) {
-                    Text(item.itemDescription)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    if item.payed != true {
-                        Text("(Pendiente)")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                }
-                
-                if let amount = item.amount {
-                    Text("Cantidad: \(amount)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
-            
-            // Get currency from home group
-            let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
-            let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
-            
-            if item.money > 0 {
-                Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
-                    .font(.headline)
-                    .foregroundColor(item.payed != true ? .orange : (entry.type ? Color.green : Color.red))
-            } else {
-                Text("Sin precio")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onEdit?()
-        }
-    }
-}
+// ItemRowView has been moved to EntryDetailView.swift
 
-struct AddItemSheet: View {
-    @Binding var isPresented: Bool
-    @Binding var itemMoney: String
-    @Binding var itemAmount: String
-    @Binding var itemDescription: String
-    @Binding var itemPayed: Bool
-    @Binding var editingItem: Item?
-    var onSave: () -> Void
-    @FocusState private var focusedField: Field?
-    
-    private var isFormValid: Bool {
-        let descriptionValid = !itemDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        
-        // Si hay precio, debe ser un número válido
-        let moneyValid = itemMoney.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || 
-                        Double(itemMoney.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
-        
-        return descriptionValid && moneyValid
-    }
-    
-    enum Field {
-        case money
-        case amount
-        case description
-    }
-    
-    var body: some View {
-        let isEditing = editingItem != nil
-        NavigationView {
-            VStack(spacing: 20) {
-                // Description Section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Descripción")
-                        .font(.headline)
-                        .foregroundColor(Color(.systemGray))
-                    
-                    TextField("Detallar cada producto tiene sus ventajas...", text: $itemDescription)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.systemGray4), lineWidth: 1)
-                        )
-                        .focused($focusedField, equals: .description)
-                        .onChange(of: itemDescription) { _, newValue in
-                        }
-                }
-                .padding(.horizontal)
-
-                // Money Section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Precio (opcional)")
-                        .font(.headline)
-                        .foregroundColor(Color(.systemGray))
-                    
-                    TextField("0.00", text: $itemMoney)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.systemGray4), lineWidth: 1)
-                        )
-                        .keyboardType(.decimalPad)
-                        .focused($focusedField, equals: .money)
-                        .onChange(of: itemMoney) { _, newValue in
-                            // Convertir coma a punto para decimales
-                            let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
-                            if convertedValue != newValue {
-                                itemMoney = convertedValue
-                                return
-                            }
-                            
-                            // Validar formato de dinero
-                            let validatedValue = validateMoneyInput(convertedValue)
-                            if validatedValue != convertedValue {
-                                itemMoney = validatedValue
-                            }
-                        }
-                }
-                .padding(.horizontal)
-                
-                // Amount Section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Cantidad (opcional)")
-                        .font(.headline)
-                        .foregroundColor(Color(.systemGray))
-                    
-                    TextField("1", text: $itemAmount)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.systemGray4), lineWidth: 1)
-                        )
-                        .keyboardType(.numberPad)
-                        .focused($focusedField, equals: .amount)
-                }
-                .padding(.horizontal)
-                
-                // Payed Section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Pagado")
-                        .font(.headline)
-                        .foregroundColor(Color(.systemGray))
-                    
-                    HStack {
-                        Text(itemPayed ? "Sí" : "No")
-                            .foregroundColor(.primary)
-                        Spacer()
-                        Toggle("", isOn: $itemPayed)
-                            .toggleStyle(SwitchToggleStyle(tint: .green))
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(.systemGray4), lineWidth: 1)
-                    )
-                }
-                .padding(.horizontal)
-                
-                Spacer()
-            }
-            .padding(.vertical)
-            .navigationTitle(isEditing ? "Editar Item" : "Nuevo Item")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") {
-                        isPresented = false
-                    }
-                    .foregroundColor(.gray)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Guardar") {
-                        onSave()
-                        isPresented = false
-                    }
-                    .foregroundColor(.red)
-                    .disabled(!isFormValid)
-                }
-                
-                ToolbarItemGroup(placement: .keyboard) {
-                    
-                    Button(action: {
-                        if focusedField == .amount {
-                            focusedField = .money
-                        } else if focusedField == .money {
-                            focusedField = .description
-                        }
-                    }) {
-                        Image(systemName: "chevron.up")
-                    }
-                    .foregroundColor(.red)
-                    .disabled(focusedField == .description)
-                    
-                    Button(action: {
-                        if focusedField == .description {
-                            focusedField = .money
-                        } else if focusedField == .money {
-                            focusedField = .amount
-                        }
-                    }) {
-                        Image(systemName: "chevron.down")
-                    }
-                    .foregroundColor(.red)
-                    .disabled(focusedField == .amount)
-                    
-                    Spacer()
-                    
-                    Button("Done") {
-                        focusedField = nil
-                    }
-                    .foregroundColor(.red)
-                }
-            }
-        }
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-        .onAppear {
-            if !isEditing {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    focusedField = .description
-                }
-            } else {
-                focusedField = nil
-            }
-        }
-    }
-}
+// AddItemSheet has been moved to EntryDetailView.swift
 
 struct CategoryManagementSheet: View {
     @Binding var isPresented: Bool
@@ -2604,7 +1726,7 @@ struct FiltersSheet: View {
         .modelContainer(for: [HomeGroup.self, Entry.self, Item.self], inMemory: true)
 }
 
-// MARK: - Money Validation Helper
+// MARK: - Money Validation Helper (shared between forms)
 func validateMoneyInput(_ input: String) -> String {
     // Si está vacío, permitir
     if input.isEmpty {

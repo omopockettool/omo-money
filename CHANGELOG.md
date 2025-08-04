@@ -5,6 +5,73 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-08-04
+
+### Added
+- **Navigation Form System**:
+  - New navigation-based form interface for better user experience
+  - Step-by-step entry creation process with clear progression
+  - Form validation with real-time feedback
+  - Improved form accessibility and keyboard navigation
+- **Detailed Entry View**:
+  - Enhanced entry detail view with comprehensive information display
+  - Better visual hierarchy for entry information
+  - Improved item listing and management within entries
+  - Enhanced editing capabilities for entry details
+- **Enhanced Form Validation**:
+  - Real-time validation feedback during form completion
+  - Clear error messages and visual indicators
+  - Improved user guidance through form completion process
+  - Better handling of required vs optional fields
+
+### Changed
+- **Form Navigation Flow**:
+  - Replaced modal sheet with navigation-based form interface
+  - Improved form progression with clear step indicators
+  - Better keyboard handling and focus management
+  - Enhanced accessibility for form interactions
+- **Entry Detail Interface**:
+  - Redesigned entry detail view for better information display
+  - Improved layout and spacing for entry information
+  - Enhanced visual feedback for entry status and details
+  - Better integration with item management features
+- **User Experience Improvements**:
+  - Smoother transitions between form steps
+  - Better visual feedback for form completion status
+  - Improved error handling and user guidance
+  - Enhanced overall form usability
+
+### Technical
+- **Navigation Architecture**:
+  - Implemented NavigationStack for form progression
+  - Enhanced state management for multi-step forms
+  - Improved form validation and error handling
+  - Better keyboard and accessibility support
+- **Detail View Enhancements**:
+  - Redesigned entry detail view architecture
+  - Improved data display and interaction patterns
+  - Enhanced item management within entries
+  - Better visual hierarchy and information organization
+- **Form Validation System**:
+  - Real-time validation with immediate feedback
+  - Enhanced error message display and handling
+  - Improved form completion tracking
+  - Better user guidance through validation process
+
+### User Experience
+- **Intuitive Form Flow**: Clear step-by-step progression through entry creation
+- **Enhanced Detail View**: Better organization and display of entry information
+- **Improved Validation**: Real-time feedback and clear error messages
+- **Better Accessibility**: Enhanced keyboard navigation and screen reader support
+- **Smoother Interactions**: Improved transitions and visual feedback
+
+### Benefits
+- **Better Form Experience**: Navigation-based forms are more intuitive and accessible
+- **Enhanced Detail View**: Clearer presentation of entry information
+- **Improved Validation**: Users get immediate feedback on form completion
+- **Better Accessibility**: Enhanced support for users with accessibility needs
+- **Professional Interface**: More polished and user-friendly form interactions
+
 ## [1.4.0] - 2025-08-01
 
 ### Added
