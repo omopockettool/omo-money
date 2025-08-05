@@ -832,7 +832,7 @@ struct EmptyStateView: View {
             } else if hasEntriesInGroup && isCategoryFilterActive && hasEntriesInCurrentPeriod {
                 // Category filter returned no results - Use same design as search
                 VStack(spacing: 12) {
-                    Image(systemName: "chart.pie")
+                    Image(systemName: "line.3.horizontal.decrease.circle")
                         .font(.system(size: 40))
                         .foregroundColor(.gray)
                     
@@ -841,7 +841,7 @@ struct EmptyStateView: View {
                         .fontWeight(.medium)
                         .foregroundColor(Color(.systemGray))
                     
-                    Text("No hay entradas en la categoría '\(selectedCategory)' en \(selectedMonthYear.formatted(.dateTime.month(.wide).year()))")
+                    Text("No hay entradas para los filtros aplicados.")
                         .font(.caption)
                         .multilineTextAlignment(.center)
                         .foregroundColor(.secondary)
