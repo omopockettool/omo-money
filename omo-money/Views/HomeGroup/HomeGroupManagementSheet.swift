@@ -19,7 +19,7 @@ struct HomeGroupManagementSheet: View {
     
     @State private var showingAddHomeGroup = false
     @State private var newHomeGroupName = ""
-    @State private var newHomeGroupCurrency = Currency.usd.rawValue
+    @State private var newHomeGroupCurrency = "USD"
     @State private var showingDeleteAlert = false
     @State private var groupsToDelete: [HomeGroup] = []
     
