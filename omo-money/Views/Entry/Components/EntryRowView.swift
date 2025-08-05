@@ -74,8 +74,8 @@ struct EntryRowView: View {
                 
                 VStack(alignment: .trailing, spacing: 4) {
                     // Show total paid amount (always show if there are paid items)
-                    if paidItems.count > 0 {
-                        Text("\(currencySymbol)\(String(format: "%.2f", totalPaid))")
+                    if paidItems.count > 0 {    
+                        Text("\(String(format: "%.2f", totalPaid))\(currencySymbol)")
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundColor(entry.type ? Color.green : Color.red)
@@ -83,7 +83,7 @@ struct EntryRowView: View {
                     
                     // Show unpaid amount or status
                     if totalUnpaid > 0 {
-                        Text("Pendiente: \(currencySymbol)\(String(format: "%.2f", totalUnpaid))")
+                        Text("Pendiente: \(String(format: "%.2f", totalUnpaid))\(currencySymbol)")
                             .font(.caption)
                             .foregroundColor(.orange)
                     } else if unpaidItems.count > 0 {

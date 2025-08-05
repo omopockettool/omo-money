@@ -613,7 +613,7 @@ struct ItemRowView: View {
             let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
             
             if item.money > 0 {
-                Text("\(currencySymbol)\(String(format: "%.2f", item.money))")
+                Text("\(String(format: "%.2f", item.money))\(currencySymbol)")
                     .font(.headline)
                     .foregroundColor(item.payed != true ? .orange : (entry.type ? Color.green : Color.red))
             } else {
