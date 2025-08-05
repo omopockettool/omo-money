@@ -5,6 +5,70 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-08-05
+
+### Added
+- **Enhanced Item Creation UX**:
+  - Improved user experience when creating and editing items
+  - Loading indicator replaces "Guardar" button during save operations
+  - Smooth transitions without layout shifts during item operations
+  - Better visual feedback for save operations with progress indicator
+- **Asynchronous Item Operations**:
+  - Non-blocking item creation and editing with async/await
+  - Immediate sheet closure after successful save operations
+  - Form fields are disabled during save operations to prevent conflicts
+  - Proper error handling for database operations
+
+### Changed
+- **Item Creation Flow**:
+  - Eliminated the jarring experience of fields clearing before sheet closure
+  - Sheet now closes immediately after save operation starts
+  - Form reset happens after sheet dismissal for smoother UX
+  - Loading state prevents multiple save attempts
+- **Save Button Behavior**:
+  - "Guardar" button is completely replaced by loading indicator during save
+  - No more layout shifts or button movement during operations
+  - Consistent button positioning and visual stability
+  - Clear visual feedback for operation status
+- **Form State Management**:
+  - Form fields are disabled during save operations
+  - Keyboard navigation is disabled during save
+  - Cancel button is disabled during save operations
+  - Better state isolation during async operations
+
+### Technical
+- **Async/Await Implementation**:
+  - Converted item save operations to use async/await pattern
+  - Added `@MainActor` for proper UI updates
+  - Implemented `Task.detached` for database operations
+  - Added artificial delay (0.3s) for better UX feedback
+- **State Management**:
+  - Added `@State private var isSavingItem: Bool` for loading state
+  - Proper state reset after sheet dismissal
+  - Enhanced form validation during save operations
+  - Better error handling and user feedback
+- **UI Component Updates**:
+  - Updated `AddItemSheet` to support loading state
+  - Enhanced toolbar with conditional loading indicator
+  - Improved form field accessibility during operations
+  - Better visual hierarchy during save operations
+
+### User Experience
+- **Smooth Item Creation**: No more jarring field clearing before sheet closure
+- **Clear Visual Feedback**: Loading indicator shows operation progress
+- **Stable Interface**: No layout shifts or button movement during operations
+- **Immediate Response**: Sheet closes instantly after save operation starts
+- **Better Error Handling**: Proper feedback for failed operations
+- **Consistent Behavior**: Same smooth experience for both create and edit operations
+
+### Benefits
+- **Professional Feel**: Smooth, polished user experience
+- **Reduced Confusion**: Clear visual feedback for all operations
+- **Better Performance**: Non-blocking operations with proper async handling
+- **Stable Interface**: No more jarring visual changes during operations
+- **Enhanced Reliability**: Proper error handling and state management
+- **Improved Accessibility**: Better support for users with different needs
+
 ## [1.4.0] - 2025-08-04
 
 ### Added
