@@ -2,7 +2,7 @@
 //  AppInfoSheet.swift
 //  omo-money
 //
-//  Created by Dennis Chicaiza A on 15/7/25.
+//  Created by Dennis Chicaiza A on 05/8/2025.
 //
 
 import SwiftUI
