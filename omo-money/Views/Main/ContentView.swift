@@ -64,76 +64,85 @@ struct ContentView: View {
         return "otros" // fallback
     }
     
-    // Filter entries by selected home group, month/year, category, and search
-    var filteredEntries: [Entry] {
-        guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
-        
+    // MARK: - Filtering Logic
+    
+    // Filter entries by home group and date
+    private func filterEntriesByDate(_ entries: [Entry], homeGroupId: String) -> [Entry] {
         let calendar = Calendar.current
         
-        // First filter by date
-        let dateFilteredEntries: [Entry]
         if showAllMonths {
             let startOfYear = calendar.dateInterval(of: .year, for: selectedMonthYear)?.start ?? selectedMonthYear
             let endOfYear = calendar.dateInterval(of: .year, for: selectedMonthYear)?.end ?? selectedMonthYear
             
-            dateFilteredEntries = entries.filter { entry in
-                entry.homeGroupId == selectedHomeGroupId &&
+            return entries.filter { entry in
+                entry.homeGroupId == homeGroupId &&
                 entry.date >= startOfYear &&
                 entry.date < endOfYear
             }
         } else {
-            // Filter by specific month
             let startOfMonth = calendar.dateInterval(of: .month, for: selectedMonthYear)?.start ?? selectedMonthYear
             let endOfMonth = calendar.dateInterval(of: .month, for: selectedMonthYear)?.end ?? selectedMonthYear
             
-            dateFilteredEntries = entries.filter { entry in
-                entry.homeGroupId == selectedHomeGroupId &&
+            return entries.filter { entry in
+                entry.homeGroupId == homeGroupId &&
                 entry.date >= startOfMonth &&
                 entry.date < endOfMonth
             }
         }
-        
-        // Then filter by category
-        let categoryFilteredEntries: [Entry]
+    }
+    
+    // Filter entries by category
+    private func filterEntriesByCategory(_ entries: [Entry]) -> [Entry] {
         if selectedCategory == "Todas" {
-            categoryFilteredEntries = dateFilteredEntries
+            return entries
         } else {
             let categoryRawValue = getCategoryRawValue(from: selectedCategory)
-            categoryFilteredEntries = dateFilteredEntries.filter { entry in
+            return entries.filter { entry in
                 entry.category == categoryRawValue
             }
         }
-        
-        // Finally filter by search text
+    }
+    
+    // Filter entries by search text
+    private func filterEntriesBySearch(_ entries: [Entry]) -> [Entry] {
         if searchText.isEmpty {
-            return categoryFilteredEntries
-        } else {
-            // Clean search text: trim whitespace and convert to lowercase
-            let searchLower = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            
-            // If search text is empty after trimming, return all entries
-            if searchLower.isEmpty {
-                return categoryFilteredEntries
+            return entries
+        }
+        
+        let searchLower = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        if searchLower.isEmpty {
+            return entries
+        }
+        
+        return entries.filter { entry in
+            // Search in entry title
+            if entry.title.lowercased().contains(searchLower) {
+                return true
             }
             
-            return categoryFilteredEntries.filter { entry in
-                // Search in entry title
-                if entry.title.lowercased().contains(searchLower) {
-                    return true
-                }
-                
-                // Search in entry category
-                if entry.category.lowercased().contains(searchLower) {
-                    return true
-                }
-                
-                // Search in items associated with this entry
-                let items = allItems.filter { $0.entryId == entry.id }
-                return items.contains { item in
-                    item.itemDescription.lowercased().contains(searchLower)
-                }
+            // Search in entry category
+            if entry.category.lowercased().contains(searchLower) {
+                return true
+            }
+            
+            // Search in items associated with this entry
+            let items = allItems.filter { $0.entryId == entry.id }
+            return items.contains { item in
+                item.itemDescription.lowercased().contains(searchLower)
             }
         }
+    }
+    
+    // Main filtered entries computed property
+    var filteredEntries: [Entry] {
+        guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
+        
+        let dateFiltered = filterEntriesByDate(entries, homeGroupId: selectedHomeGroupId)
+        let categoryFiltered = filterEntriesByCategory(dateFiltered)
+        let searchFiltered = filterEntriesBySearch(categoryFiltered)
+        
+        return searchFiltered
     }
     
     // Group entries by date (without time) with stable section identifiers
@@ -437,117 +446,29 @@ struct ContentView: View {
                     }
                     .padding()
                 } else if filteredEntries.isEmpty {
-                    // Check if this is due to search or actually no entries
-                    let hasEntriesInGroup = entries.contains { $0.homeGroupId == selectedHomeGroupId }
-                    let hasEntriesInCurrentMonth = !filteredEntries.isEmpty
-                    let isGroupNew = !hasEntriesInGroup
-                    
-                    VStack {
-                        if hasEntriesInGroup && !searchText.isEmpty {
-                            // Search returned no results - Compact design
-                            VStack(spacing: 12) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.gray)
-                                
-                                Text("No se encontraron resultados")
-                                    .font(.headline)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(Color(.systemGray))
-                                
-                                Text("No hay entries o items que coincidan con '\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))'")
-                                    .font(.caption)
-                                    .multilineTextAlignment(.center)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal)
-                                
-                                Button(action: {
-                                    searchText = ""
-                                    isSearchActive = false
-                                }) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.system(size: 14))
-                                        Text("Limpiar Búsqueda")
-                                            .font(.subheadline)
-                                    }
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(Color.gray)
-                                    .cornerRadius(8)
-                                }
-                            }
-                            .padding(.horizontal)
-                            .padding(.vertical, 40)
-                        } else if isGroupNew {
-                            // New group - show welcome message
-                            VStack(spacing: 20) {
-                                Image(systemName: "dollarsign.circle.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.green)
-                                
-                                Text("OMO Money")
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(Color(.systemGray))
-                                
-                                Text("Comienza a registrar tus gastos e ingresos en este grupo")
-                                    .multilineTextAlignment(.center)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal)
-                                
-                                Button(action: {
-                                    prepareForNewEntry()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "plus.circle.fill")
-                                        Text("Agregar Primer Entry")
-                                    }
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .padding()
-                                    .background(Color.red)
-                                    .cornerRadius(10)
-                                }
-                            }
-                            .padding()
-                        } else {
-                            // Group has entries in other months but not in current month
-                            VStack(spacing: 20) {
-                                Image(systemName: "calendar.badge.plus")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.blue)
-                                
-                                Text("Sin Entradas este Mes")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(Color(.systemGray))
-                                
-                                Text("No hay entradas registrados en \(selectedMonthYear.formatted(.dateTime.month(.wide).year()))")
-                                    .multilineTextAlignment(.center)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal)
-                                
-                                Button(action: {
-                                    prepareForNewEntry()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "plus.circle.fill")
-                                        Text("Agregar Entrada")
-                                    }
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .padding()
-                                    .background(Color.red)
-                                    .cornerRadius(10)
-                                }
-                            }
-                            .padding()
-                        }
-                        
-                        Spacer()
-                    }
+                    EmptyStateView(
+                        hasEntriesInGroup: entries.contains { $0.homeGroupId == selectedHomeGroupId },
+                        hasEntriesInCurrentPeriod: !filterEntriesByDate(entries, homeGroupId: selectedHomeGroupId ?? "").isEmpty,
+                        isCategoryFilterActive: selectedCategory != "Todas",
+                        searchText: searchText,
+                        selectedCategory: selectedCategory,
+                        selectedMonthYear: selectedMonthYear,
+                        showAllMonths: showAllMonths,
+                        onClearSearch: {
+                            searchText = ""
+                            isSearchActive = false
+                        },
+                        onClearCategoryFilter: {
+                            selectedCategory = "Todas"
+                        },
+                        onGoToCurrentMonth: {
+                            let calendar = Calendar.current
+                            let currentDate = Date()
+                            selectedMonthYear = currentDate
+                            showAllMonths = false
+                        },
+                        onAddEntry: prepareForNewEntry
+                    )
                 } else {
                     List {
                         ForEach(entriesByDate, id: \.sectionId) { (date, entriesForDate, sectionId) in
@@ -857,5 +778,193 @@ struct ContentView: View {
 
 
 // DateFormatter extension has been moved to Utils/Extensions/DateFormatter+Extensions.swift
+
+// MARK: - Empty State View
+struct EmptyStateView: View {
+    let hasEntriesInGroup: Bool
+    let hasEntriesInCurrentPeriod: Bool
+    let isCategoryFilterActive: Bool
+    let searchText: String
+    let selectedCategory: String
+    let selectedMonthYear: Date
+    let showAllMonths: Bool
+    let onClearSearch: () -> Void
+    let onClearCategoryFilter: () -> Void
+    let onGoToCurrentMonth: () -> Void
+    let onAddEntry: () -> Void
+    
+    var body: some View {
+        VStack {
+            if hasEntriesInGroup && !searchText.isEmpty {
+                // Search returned no results - Compact design
+                VStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray)
+                    
+                    Text("No se encontraron resultados")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    Text("No hay entries o items que coincidan con '\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))'")
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                    
+                    Button(action: onClearSearch) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                            Text("Limpiar Búsqueda")
+                                .font(.subheadline)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.gray)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 40)
+            } else if hasEntriesInGroup && isCategoryFilterActive && hasEntriesInCurrentPeriod {
+                // Category filter returned no results - Use same design as search
+                VStack(spacing: 12) {
+                    Image(systemName: "chart.pie")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray)
+                    
+                    Text("No se encontraron resultados")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    Text("No hay entradas en la categoría '\(selectedCategory)' en \(selectedMonthYear.formatted(.dateTime.month(.wide).year()))")
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                    
+                    Button(action: onClearCategoryFilter) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                            Text("Limpiar Filtro")
+                                .font(.subheadline)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.gray)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 40)
+            } else if hasEntriesInGroup && !hasEntriesInCurrentPeriod {
+                // Date filter returned no results - Use same design as search
+                VStack(spacing: 12) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray)
+                    
+                    Text("No se encontraron resultados")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    let periodText = showAllMonths ? 
+                        "el año \(Calendar.current.component(.year, from: selectedMonthYear))" :
+                        selectedMonthYear.formatted(.dateTime.month(.wide).year())
+                    Text("No hay entradas en \(periodText)")
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                    
+                    Button(action: onGoToCurrentMonth) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                            Text("Ir al Mes Actual")
+                            .font(.subheadline)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.gray)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 40)
+            } else if !hasEntriesInGroup {
+                // New group - show welcome message
+                VStack(spacing: 20) {
+                    Image(systemName: "dollarsign.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.green)
+                    
+                    Text("OMO Money")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    Text("Comienza a registrar tus gastos e ingresos en este grupo")
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                    
+                    Button(action: onAddEntry) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Agregar Primer Entry")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(10)
+                    }
+                }
+                .padding()
+            } else {
+                // Group has entries in other months but not in current month
+                VStack(spacing: 20) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 60))
+                        .foregroundColor(.blue)
+                    
+                    Text("Sin Entradas este Mes")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(Color(.systemGray))
+                    
+                    Text("No hay entradas registrados en \(selectedMonthYear.formatted(.dateTime.month(.wide).year()))")
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                    
+                    Button(action: onAddEntry) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Agregar Entrada")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(10)
+                    }
+                }
+                .padding()
+            }
+            
+            Spacer()
+        }
+    }
+}
 
 
