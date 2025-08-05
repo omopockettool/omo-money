@@ -30,6 +30,7 @@ struct EntryDetailNavigationView: View {
     @State private var entryHomeGroupId = ""
     @State private var entryMoney = ""
     @State private var editingEntry: Entry? = nil
+    @State private var isSavingItem = false
     
     var items: [Item] {
         allItems.filter { $0.entryId == entry.id }
@@ -121,16 +122,17 @@ struct EntryDetailNavigationView: View {
                 itemDescription: $itemDescription,
                 itemPayed: $itemPayed,
                 editingItem: $editingItem,
+                isSaving: $isSavingItem,
                 onSave: {
-                    if let editingItem = editingItem {
-                        updateItem(editingItem)
-                    } else {
-                        addItem()
+                    Task {
+                        await saveItem()
                     }
                 }
             )
             .onDisappear {
                 editingItem = nil
+                // Reset form after sheet is dismissed
+                resetItemForm()
             }
         }
         .background(
@@ -184,68 +186,61 @@ struct EntryDetailNavigationView: View {
         showingEditEntry = true
     }
     
-    private func addItem() {
-        guard !itemDescription.isEmpty else { return }
-        
-        // Use 0 as default money if empty or invalid
-        let money = Double(itemMoney) ?? 0.0
-        
-        // Use 1 as default amount if empty
-        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
-        
-        withAnimation {
-            let newItem = Item(
-                money: money,
-                amount: amount,
-                itemDescription: itemDescription,
-                entryId: entry.id,
-                position: nil,
-                payed: itemPayed
-            )
-            modelContext.insert(newItem)
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error saving item: \(error)")
-            }
-        }
-        
-        // Reset form
-        itemMoney = ""
-        itemAmount = ""
-        itemDescription = ""
-        itemPayed = false
-    }
-    
-    private func updateItem(_ item: Item) {
-        guard !itemDescription.isEmpty else { return }
-        
-        // Use 0 as default money if empty or invalid
-        let money = Double(itemMoney) ?? 0.0
-        
-        // Use 1 as default amount if empty
-        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
-        
-        withAnimation {
-            item.money = money
-            item.amount = amount
-            item.itemDescription = itemDescription
-            item.payed = itemPayed
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error updating item: \(error)")
-            }
-        }
-        
-        // Reset form
+    private func resetItemForm() {
         itemMoney = ""
         itemAmount = ""
         itemDescription = ""
         itemPayed = false
         editingItem = nil
+        isSavingItem = false
+    }
+    
+    @MainActor
+    private func saveItem() async {
+        guard !itemDescription.isEmpty else { return }
+        
+        isSavingItem = true
+        
+        // Use 0 as default money if empty or invalid
+        let money = Double(itemMoney) ?? 0.0
+        
+        // Use 1 as default amount if empty
+        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
+        
+        withAnimation {
+            if let editingItem = editingItem {
+                // Update existing item
+                editingItem.money = money
+                editingItem.amount = amount
+                editingItem.itemDescription = itemDescription
+                editingItem.payed = itemPayed
+            } else {
+                // Create new item
+                let newItem = Item(
+                    money: money,
+                    amount: amount,
+                    itemDescription: itemDescription,
+                    entryId: entry.id,
+                    position: nil,
+                    payed: itemPayed
+                )
+                modelContext.insert(newItem)
+            }
+        }
+        
+        // Save asynchronously with a small delay for better UX
+        do {
+            try await Task.detached {
+                // Add a small delay to show the loading indicator
+                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+                try modelContext.save()
+            }.value
+        } catch {
+            print("Error saving item: \(error)")
+        }
+        
+        // Close sheet immediately after saving
+        showingAddItem = false
     }
     
     private func updateEntry(_ entry: Entry) {
@@ -309,6 +304,7 @@ struct EntryDetailView: View {
     @State private var entryHomeGroupId = ""
     @State private var entryMoney = ""
     @State private var editingEntry: Entry? = nil
+    @State private var isSavingItem = false
     
     var items: [Item] {
         allItems.filter { $0.entryId == entry.id }
@@ -410,16 +406,17 @@ struct EntryDetailView: View {
                     itemDescription: $itemDescription,
                     itemPayed: $itemPayed,
                     editingItem: $editingItem,
+                    isSaving: $isSavingItem,
                     onSave: {
-                        if let editingItem = editingItem {
-                            updateItem(editingItem)
-                        } else {
-                            addItem()
+                        Task {
+                            await saveItem()
                         }
                     }
                 )
                 .onDisappear {
                     editingItem = nil
+                    // Reset form after sheet is dismissed
+                    resetItemForm()
                 }
             }
             .background(
@@ -474,68 +471,61 @@ struct EntryDetailView: View {
         showingEditEntry = true
     }
     
-    private func addItem() {
-        guard !itemDescription.isEmpty else { return }
-        
-        // Use 0 as default money if empty or invalid
-        let money = Double(itemMoney) ?? 0.0
-        
-        // Use 1 as default amount if empty
-        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
-        
-        withAnimation {
-            let newItem = Item(
-                money: money,
-                amount: amount,
-                itemDescription: itemDescription,
-                entryId: entry.id,
-                position: nil,
-                payed: itemPayed
-            )
-            modelContext.insert(newItem)
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error saving item: \(error)")
-            }
-        }
-        
-        // Reset form
-        itemMoney = ""
-        itemAmount = ""
-        itemDescription = ""
-        itemPayed = false
-    }
-    
-    private func updateItem(_ item: Item) {
-        guard !itemDescription.isEmpty else { return }
-        
-        // Use 0 as default money if empty or invalid
-        let money = Double(itemMoney) ?? 0.0
-        
-        // Use 1 as default amount if empty
-        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
-        
-        withAnimation {
-            item.money = money
-            item.amount = amount
-            item.itemDescription = itemDescription
-            item.payed = itemPayed
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error updating item: \(error)")
-            }
-        }
-        
-        // Reset form
+    private func resetItemForm() {
         itemMoney = ""
         itemAmount = ""
         itemDescription = ""
         itemPayed = false
         editingItem = nil
+        isSavingItem = false
+    }
+    
+    @MainActor
+    private func saveItem() async {
+        guard !itemDescription.isEmpty else { return }
+        
+        isSavingItem = true
+        
+        // Use 0 as default money if empty or invalid
+        let money = Double(itemMoney) ?? 0.0
+        
+        // Use 1 as default amount if empty
+        let amount = itemAmount.isEmpty ? 1 : Int(itemAmount) ?? 1
+        
+        withAnimation {
+            if let editingItem = editingItem {
+                // Update existing item
+                editingItem.money = money
+                editingItem.amount = amount
+                editingItem.itemDescription = itemDescription
+                editingItem.payed = itemPayed
+            } else {
+                // Create new item
+                let newItem = Item(
+                    money: money,
+                    amount: amount,
+                    itemDescription: itemDescription,
+                    entryId: entry.id,
+                    position: nil,
+                    payed: itemPayed
+                )
+                modelContext.insert(newItem)
+            }
+        }
+        
+        // Save asynchronously with a small delay for better UX
+        do {
+            try await Task.detached {
+                // Add a small delay to show the loading indicator
+                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+                try modelContext.save()
+            }.value
+        } catch {
+            print("Error saving item: \(error)")
+        }
+        
+        // Close sheet immediately after saving
+        showingAddItem = false
     }
     
     private func updateEntry(_ entry: Entry) {
@@ -637,6 +627,7 @@ struct AddItemSheet: View {
     @Binding var itemDescription: String
     @Binding var itemPayed: Bool
     @Binding var editingItem: Item?
+    @Binding var isSaving: Bool
     var onSave: () -> Void
     @FocusState private var focusedField: Field?
     
@@ -675,6 +666,7 @@ struct AddItemSheet: View {
                                 .stroke(Color(.systemGray4), lineWidth: 1)
                         )
                         .focused($focusedField, equals: .description)
+                        .disabled(isSaving)
                         .onChange(of: itemDescription) { _, newValue in
                         }
                 }
@@ -697,6 +689,7 @@ struct AddItemSheet: View {
                         )
                         .keyboardType(.decimalPad)
                         .focused($focusedField, equals: .money)
+                        .disabled(isSaving)
                         .onChange(of: itemMoney) { _, newValue in
                             // Convertir coma a punto para decimales
                             let convertedValue = newValue.replacingOccurrences(of: ",", with: ".")
@@ -730,6 +723,7 @@ struct AddItemSheet: View {
                         )
                         .keyboardType(.numberPad)
                         .focused($focusedField, equals: .amount)
+                        .disabled(isSaving)
                 }
                 .padding(.horizontal)
                 
@@ -745,6 +739,7 @@ struct AddItemSheet: View {
                         Spacer()
                         Toggle("", isOn: $itemPayed)
                             .toggleStyle(SwitchToggleStyle(tint: .green))
+                            .disabled(isSaving)
                     }
                     .padding()
                     .background(Color(.systemGray6))
@@ -767,15 +762,23 @@ struct AddItemSheet: View {
                         isPresented = false
                     }
                     .foregroundColor(.gray)
+                    .disabled(isSaving)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Guardar") {
-                        onSave()
-                        isPresented = false
+                    Group {
+                        if isSaving {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .foregroundColor(.red)
+                        } else {
+                            Button("Guardar") {
+                                onSave()
+                            }
+                            .foregroundColor(.red)
+                            .disabled(!isFormValid)
+                        }
                     }
-                    .foregroundColor(.red)
-                    .disabled(!isFormValid)
                 }
                 
                 ToolbarItemGroup(placement: .keyboard) {
@@ -790,7 +793,7 @@ struct AddItemSheet: View {
                         Image(systemName: "chevron.up")
                     }
                     .foregroundColor(.red)
-                    .disabled(focusedField == .description)
+                    .disabled(focusedField == .description || isSaving)
                     
                     Button(action: {
                         if focusedField == .description {
@@ -802,7 +805,7 @@ struct AddItemSheet: View {
                         Image(systemName: "chevron.down")
                     }
                     .foregroundColor(.red)
-                    .disabled(focusedField == .amount)
+                    .disabled(focusedField == .amount || isSaving)
                     
                     Spacer()
                     
