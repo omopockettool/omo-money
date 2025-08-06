@@ -75,10 +75,13 @@ struct EntryDetailNavigationView: View {
                         ItemRowView(item: item, entry: entry, onEdit: {
                             prepareForEditItem(item)
                         })
-                    }
-                    .onDelete { offsets in
-                        let itemsToDelete = offsets.map { items[$0] }
-                        deleteItems(itemsToDelete)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                deleteItems([item])
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                        }
                     }
                 }
             }
@@ -354,10 +357,13 @@ struct EntryDetailView: View {
                             ItemRowView(item: item, entry: entry, onEdit: {
                                 prepareForEditItem(item)
                             })
-                        }
-                        .onDelete { offsets in
-                            let itemsToDelete = offsets.map { items[$0] }
-                            deleteItems(itemsToDelete)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    deleteItems([item])
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                            }
                         }
                     }
                 }

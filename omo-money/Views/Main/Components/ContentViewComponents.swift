@@ -233,10 +233,13 @@ struct EntriesListView: View {
                             insertion: .move(edge: .leading).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
-                    }
-                    .onDelete { offsets in
-                        let entriesToDelete = offsets.map { entriesForDate[$0] }
-                        onEntryDelete(entriesToDelete)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                onEntryDelete([entry])
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                        }
                     }
                 }
             }
