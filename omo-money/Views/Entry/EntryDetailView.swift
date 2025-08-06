@@ -201,6 +201,9 @@ struct EntryDetailNavigationView: View {
         
         isSavingItem = true
         
+        // Clean the description by trimming whitespace
+        let cleanedDescription = itemDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         // Use 0 as default money if empty or invalid
         let money = Double(itemMoney) ?? 0.0
         
@@ -212,14 +215,14 @@ struct EntryDetailNavigationView: View {
                 // Update existing item
                 editingItem.money = money
                 editingItem.amount = amount
-                editingItem.itemDescription = itemDescription
+                editingItem.itemDescription = cleanedDescription
                 editingItem.payed = itemPayed
             } else {
                 // Create new item
                 let newItem = Item(
                     money: money,
                     amount: amount,
-                    itemDescription: itemDescription,
+                    itemDescription: cleanedDescription,
                     entryId: entry.id,
                     position: nil,
                     payed: itemPayed
@@ -245,7 +248,8 @@ struct EntryDetailNavigationView: View {
     
     private func updateEntry(_ entry: Entry) {
         withAnimation {
-            entry.title = entryTitle
+            let cleanedTitle = entryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            entry.title = cleanedTitle
             entry.date = entryDate
             entry.category = entryCategory
             entry.type = entryType
@@ -486,6 +490,9 @@ struct EntryDetailView: View {
         
         isSavingItem = true
         
+        // Clean the description by trimming whitespace
+        let cleanedDescription = itemDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         // Use 0 as default money if empty or invalid
         let money = Double(itemMoney) ?? 0.0
         
@@ -497,14 +504,14 @@ struct EntryDetailView: View {
                 // Update existing item
                 editingItem.money = money
                 editingItem.amount = amount
-                editingItem.itemDescription = itemDescription
+                editingItem.itemDescription = cleanedDescription
                 editingItem.payed = itemPayed
             } else {
                 // Create new item
                 let newItem = Item(
                     money: money,
                     amount: amount,
-                    itemDescription: itemDescription,
+                    itemDescription: cleanedDescription,
                     entryId: entry.id,
                     position: nil,
                     payed: itemPayed
@@ -530,7 +537,8 @@ struct EntryDetailView: View {
     
     private func updateEntry(_ entry: Entry) {
         withAnimation {
-            entry.title = entryTitle
+            let cleanedTitle = entryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            entry.title = cleanedTitle
             entry.date = entryDate
             entry.category = entryCategory
             entry.type = entryType

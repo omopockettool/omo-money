@@ -38,10 +38,8 @@ struct ContentView: View {
     @State private var tempShowAllMonths = false // For "All months" option
     @State private var tempSelectedCategory = "Todas" // For category filter
     @State private var showingAppInfo = false
-    @State private var showingSearch = false
     @State private var searchText = ""
-    @State private var isSearchActive = false
-    @FocusState private var isSearchFieldFocused: Bool
+    @State private var tempSearchText = ""
     
     // Navigation state for entry form
     @State private var navigateToAddEntry = false
@@ -146,7 +144,6 @@ struct ContentView: View {
                 onClearAllFilters: {
                     // Reset all filters
                     searchText = ""
-                    isSearchActive = false
                     selectedCategory = "Todas"
                     let calendar = Calendar.current
                     let currentDate = Date()
@@ -159,7 +156,6 @@ struct ContentView: View {
                 searchText: searchText,
                 onClearSearch: {
                     searchText = ""
-                    isSearchActive = false
                 }
             )
         case .categoryFilterNoResults:
@@ -195,12 +191,6 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Add extra spacing when search is active to prevent overlap with navigation bar
-                if isSearchActive {
-                    Spacer()
-                        .frame(height: 16)
-                }
-                
                 // Header Controls
                 if !userHomeGroups.isEmpty {
                     HeaderControlsView(
@@ -210,7 +200,6 @@ struct ContentView: View {
                         selectedMonthYear: selectedMonthYear,
                         showAllMonths: showAllMonths,
                         selectedCategory: selectedCategory,
-                        isSearchActive: isSearchActive,
                         searchText: searchText,
                         onHomeGroupSelected: { homeGroupId in
                             selectedHomeGroupId = homeGroupId
@@ -222,23 +211,11 @@ struct ContentView: View {
                             tempSelectedYear = calendar.component(.year, from: selectedMonthYear)
                             tempShowAllMonths = showAllMonths
                             tempSelectedCategory = selectedCategory
+                            tempSearchText = searchText
                             
                             showingFilters = true
-                        },
-                        onSearchTapped: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                isSearchActive.toggle()
-                                if !isSearchActive {
-                                    searchText = ""
-                                }
-                            }
                         }
                     )
-                }
-                
-                // Search Field (when active)
-                if isSearchActive {
-                    SearchFieldView(searchText: $searchText)
                 }
                 
                 // Total Spent Widget - Always show when there's a home group selected
@@ -367,7 +344,11 @@ struct ContentView: View {
                     tempShowAllMonths: $tempShowAllMonths,
                     showAllMonths: $showAllMonths,
                     tempSelectedCategory: $tempSelectedCategory,
-                    selectedCategory: $selectedCategory
+                    selectedCategory: $selectedCategory,
+                    searchText: $searchText,
+                    tempSearchText: $tempSearchText,
+                    entries: entries,
+                    items: allItems
                 )
             }
             .background(
@@ -419,8 +400,9 @@ struct ContentView: View {
     
     private func addEntry() {
         withAnimation {
+            let cleanedTitle = entryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
             let newEntry = Entry(
-                title: entryTitle,
+                title: cleanedTitle,
                 date: entryDate,
                 category: entryCategory,
                 type: entryType,
@@ -433,7 +415,7 @@ struct ContentView: View {
                 let initialItem = Item(
                     money: money,
                     amount: 1,
-                    itemDescription: entryTitle,
+                    itemDescription: cleanedTitle,
                     entryId: newEntry.id,
                     position: nil,
                     payed: true
@@ -451,7 +433,8 @@ struct ContentView: View {
     
     private func updateEntry(_ entry: Entry) {
         withAnimation {
-            entry.title = entryTitle
+            let cleanedTitle = entryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            entry.title = cleanedTitle
             entry.date = entryDate
             entry.category = entryCategory
             entry.type = entryType

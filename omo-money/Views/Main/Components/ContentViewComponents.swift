@@ -16,12 +16,10 @@ struct HeaderControlsView: View {
     let selectedMonthYear: Date
     let showAllMonths: Bool
     let selectedCategory: String
-    let isSearchActive: Bool
     let searchText: String
     
     let onHomeGroupSelected: (String) -> Void
     let onFiltersTapped: () -> Void
-    let onSearchTapped: () -> Void
     
     var body: some View {
         HStack {
@@ -61,7 +59,7 @@ struct HeaderControlsView: View {
                             .foregroundColor(.primary)
                         
                         // Show current filter indicator
-                        if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) || selectedCategory != "Todas" {
+                        if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) || selectedCategory != "Todas" || !searchText.isEmpty {
                             HStack(spacing: 4) {
                                 if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) {
                                     if showAllMonths {
@@ -85,6 +83,17 @@ struct HeaderControlsView: View {
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
+                                
+                                if !searchText.isEmpty {
+                                    if !Calendar.current.isDate(selectedMonthYear, equalTo: Date(), toGranularity: .month) || selectedCategory != "Todas" {
+                                        Text("•")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Text("🔍")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }
@@ -96,84 +105,10 @@ struct HeaderControlsView: View {
             }
             
             Spacer()
-            
-            // Right side: Search Button
-            Button(action: onSearchTapped) {
-                HStack(spacing: 4) {
-                    Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
-                        .foregroundColor(isSearchActive ? .gray : .primary)
-                    
-                    // Show search indicator if there's active search
-                    if !searchText.isEmpty {
-                        Text("•")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(isSearchActive ? Color.gray.opacity(0.1) : Color(.secondarySystemGroupedBackground))
-                .cornerRadius(8)
-            }
         }
         .padding(.horizontal)
         .padding(.top, 8)
         .padding(.bottom, 8)
-    }
-}
-
-// MARK: - Search Field Component
-struct SearchFieldView: View {
-    @Binding var searchText: String
-    @FocusState private var isSearchFieldFocused: Bool
-    
-    var body: some View {
-        HStack {
-            HStack(spacing: 8) {
-                TextField("Buscar en entradas y sus items...", text: $searchText)
-                    .textFieldStyle(PlainTextFieldStyle())
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .font(.system(size: 15))
-                    .focused($isSearchFieldFocused)
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 14))
-                    }
-                }
-                
-                Button(action: {
-                    isSearchFieldFocused = true
-                }) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 14))
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(.systemGray4).opacity(0.3), lineWidth: 0.5)
-            )
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-        .transition(.move(edge: .top).combined(with: .opacity))
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isSearchFieldFocused = true
-            }
-        }
     }
 }
 
@@ -225,32 +160,41 @@ struct WelcomeScreenView: View {
     let onCreateGroup: () -> Void
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "house.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.red)
+        VStack(spacing: 30) {
+            Spacer()
             
-            Text("OMO Money")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(Color(.systemGray))
+            // App Icon and Title
+            VStack(spacing: 16) {
+                Image(systemName: "dollarsign.circle.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(.red)
+                
+                Text("OMO Money")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                
+                Text("Tu herramienta de bolsillo para gestionar gastos")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
             
-            Text("Crea tu primer grupo de gastos para comenzar")
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-            
+            // Create Group Button
             Button(action: onCreateGroup) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
-                    Text("Crear Primer Grupo")
+                    Text("Crear tu primer grupo")
                 }
                 .font(.headline)
                 .foregroundColor(.white)
                 .padding()
                 .background(Color.red)
-                .cornerRadius(10)
+                .cornerRadius(12)
             }
+            
+            Spacer()
         }
         .padding()
     }

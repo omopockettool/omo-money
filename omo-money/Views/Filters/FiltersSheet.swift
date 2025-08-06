@@ -17,6 +17,12 @@ struct FiltersSheet: View {
     @Binding var showAllMonths: Bool
     @Binding var tempSelectedCategory: String
     @Binding var selectedCategory: String
+    @Binding var searchText: String
+    @Binding var tempSearchText: String
+    
+    // Data for suggestions
+    let entries: [Entry]
+    let items: [Item]
     
     var body: some View {
         NavigationView {
@@ -155,6 +161,25 @@ struct FiltersSheet: View {
                 }
                 .padding(.horizontal)
                 
+                // Search Section with Suggestions
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Búsqueda:")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    SearchFieldWithSuggestionsView(
+                        searchText: $tempSearchText,
+                        entries: entries,
+                        items: items,
+                        placeholder: "Buscar en entradas e items...",
+                        excludeCurrent: nil
+                    ) { selectedText in
+                        // La sugerencia ya se aplica automáticamente al campo
+                        print("Sugerencia seleccionada: \(selectedText)")
+                    }
+                }
+                .padding(.horizontal)
+                
                 Spacer()
             }
             .padding(.vertical)
@@ -172,6 +197,8 @@ struct FiltersSheet: View {
                         showAllMonths = false
                         tempSelectedCategory = "Todas"
                         selectedCategory = "Todas"
+                        tempSearchText = ""
+                        searchText = ""
                         
                         // Apply the reset immediately by updating selectedMonthYear
                         var components = DateComponents()
@@ -189,10 +216,11 @@ struct FiltersSheet: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Aceptar") {
+                    Button("Aplicar") {
                         // Update the main state to reflect the applied filter
                         showAllMonths = tempShowAllMonths
                         selectedCategory = tempSelectedCategory
+                        searchText = tempSearchText
                         
                         // Update selectedMonthYear to reflect the current filter
                         let calendar = Calendar.current
@@ -224,7 +252,7 @@ struct FiltersSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
     
@@ -235,7 +263,7 @@ struct FiltersSheet: View {
             (4, "Mayo"), (5, "Junio"), (6, "Julio"), (7, "Agosto"),
             (8, "Septiembre"), (9, "Octubre"), (10, "Noviembre"), (11, "Diciembre")
         ]
-        return months.reversed()
+        return months
     }
     
     private func getYearOptions() -> [Int] {

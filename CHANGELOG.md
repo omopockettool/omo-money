@@ -5,6 +5,100 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-08-06
+
+### Added
+- **Intelligent Search System with Suggestions**:
+  - Advanced search functionality integrated into filter sheet
+  - Real-time search suggestions from existing entries and items
+  - Intelligent text matching with singular/plural variations (e.g., "zanahorias" finds "zanahoria")
+  - Search suggestions with entry/item type indicators
+  - Debounced search to prevent excessive API calls
+  - Dynamic suggestion list height based on number of results
+- **Enhanced Search UX**:
+  - One-tap suggestion selection that replaces text and closes list
+  - Search suggestions show entry titles and item descriptions
+  - Duplicate elimination (only one suggestion per unique name)
+  - Case-insensitive and whitespace-normalized search
+  - Search across entire group data for standardization
+- **Improved Filter System**:
+  - Search filter integrated with date and category filters
+  - Combined filtering: search + date + category simultaneously
+  - "Limpiar filtros" button resets all filters (date, category, search)
+  - Filter sheet always opens in full size for better suggestion visibility
+  - Enhanced filter indicators showing active search state
+- **Data Standardization**:
+  - Automatic whitespace trimming when creating entries and items
+  - Consistent text normalization for better search results
+  - Prevention of duplicate entries/items with trailing spaces
+  - Improved data quality for statistics and reporting
+
+### Changed
+- **Search Architecture**:
+  - Moved search from real-time to filter sheet for better performance
+  - Search only activates on "Aceptar" button to reduce CPU usage
+  - Eliminated real-time search that caused high CPU usage with 300+ entries
+  - Improved search performance and battery life
+- **Filter Sheet Design**:
+  - Changed from `.medium` to `.large` detent for full visibility
+  - Added search section with intelligent suggestions
+  - Improved filter button indicators to show search state
+  - Better visual hierarchy in filter interface
+- **Empty State Messages**:
+  - Simplified date filter messages to "No hay entradas para los filtros aplicados"
+  - Removed verbose date-specific information from empty states
+  - Updated button icons to use appropriate symbols (reset/clear instead of +)
+  - Consistent empty state design across all filter combinations
+- **Month Order Correction**:
+  - Fixed month dropdown to start from "Enero" instead of "Diciembre"
+  - Proper chronological order for better user experience
+  - Consistent with Spanish date conventions
+
+### Technical
+- **SearchSuggestionsManager**:
+  - ObservableObject for managing search suggestions with debounce
+  - Intelligent text normalization and stemming for Spanish words
+  - Duplicate elimination using case-insensitive and trimmed comparison
+  - Performance optimization with configurable debounce interval
+- **IntelligentSearchHelper**:
+  - Text normalization with diacritic and case insensitivity
+  - Spanish word variations (singular/plural, basic rules)
+  - Intelligent matching algorithm for partial and exact matches
+  - Whitespace handling for consistent search results
+- **SearchFieldWithSuggestionsView**:
+  - Reusable SwiftUI component for search with suggestions
+  - Dynamic height calculation based on suggestion count
+  - Proper keyboard handling and focus management
+  - Clean suggestion selection with immediate text replacement
+- **Data Model Improvements**:
+  - Automatic whitespace trimming in entry and item creation
+  - Consistent text storage for better search and statistics
+  - Prevention of data inconsistencies from user input
+
+### User Experience
+- **Intelligent Search**: Find entries and items with smart text matching
+- **Performance Optimized**: No more high CPU usage during search
+- **Standardized Data**: Consistent naming for better statistics
+- **Intuitive Filtering**: Combined search, date, and category filters
+- **Better Suggestions**: Relevant search suggestions with type indicators
+- **Clean Interface**: Simplified empty states and appropriate icons
+
+### Benefits
+- **Reduced CPU Usage**: Search only when needed, not in real-time
+- **Better Search Results**: Intelligent matching finds more relevant items
+- **Data Consistency**: Automatic cleaning prevents duplicate entries
+- **Improved Performance**: Debounced search and optimized suggestions
+- **Enhanced UX**: One-tap selection and immediate feedback
+- **Standardized Names**: Better statistics and reporting capabilities
+
+### Search Capabilities
+- **Multi-field Search**: Search in entry titles and item descriptions
+- **Intelligent Matching**: Handles singular/plural variations
+- **Whitespace Normalization**: Consistent results regardless of spacing
+- **Duplicate Prevention**: Only unique suggestions shown
+- **Type Indicators**: Clear distinction between entries and items
+- **Group-wide Search**: Suggestions from entire group for standardization
+
 ## [1.4.0] - 2025-08-05
 
 ### Added
