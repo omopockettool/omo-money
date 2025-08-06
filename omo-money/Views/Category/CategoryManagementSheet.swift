@@ -12,6 +12,7 @@ struct CategoryManagementSheet: View {
     @Binding var isPresented: Bool
     let entries: [Entry]
     let modelContext: ModelContext
+    let selectedHomeGroupId: String?
     @Environment(\.dismiss) private var dismiss
     
     @Query private var allItems: [Item]
@@ -27,7 +28,7 @@ struct CategoryManagementSheet: View {
     
     // Get current home group
     var currentHomeGroup: HomeGroup? {
-        guard let selectedHomeGroupId = homeGroups.first?.id else { return nil }
+        guard let selectedHomeGroupId = selectedHomeGroupId else { return homeGroups.first }
         return homeGroups.first { $0.id == selectedHomeGroupId }
     }
     

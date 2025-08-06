@@ -323,7 +323,8 @@ struct ContentView: View {
                 CategoryManagementSheet(
                     isPresented: $showingCategoryManagement,
                     entries: filteredEntries,
-                    modelContext: modelContext
+                    modelContext: modelContext,
+                    selectedHomeGroupId: selectedHomeGroupId
                 )
             }
             .sheet(isPresented: $showingHomeGroupManagement) {
