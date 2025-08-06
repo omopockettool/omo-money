@@ -74,6 +74,8 @@ struct EntryDetailNavigationView: View {
                     ForEach(items, id: \.id) { item in
                         ItemRowView(item: item, entry: entry, onEdit: {
                             prepareForEditItem(item)
+                        }, onTogglePayment: {
+                            toggleItemPayment(item)
                         })
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
@@ -165,7 +167,6 @@ struct EntryDetailNavigationView: View {
         itemMoney = ""
         itemAmount = "1"
         itemDescription = ""
-        itemPayed = false
         editingItem = nil
         showingAddItem = true
     }
@@ -193,7 +194,6 @@ struct EntryDetailNavigationView: View {
         itemMoney = ""
         itemAmount = ""
         itemDescription = ""
-        itemPayed = false
         editingItem = nil
         isSavingItem = false
     }
@@ -221,14 +221,14 @@ struct EntryDetailNavigationView: View {
                 editingItem.itemDescription = cleanedDescription
                 editingItem.payed = itemPayed
             } else {
-                // Create new item
+                // Create new item - always as unpaid (false)
                 let newItem = Item(
                     money: money,
                     amount: amount,
                     itemDescription: cleanedDescription,
                     entryId: entry.id,
                     position: nil,
-                    payed: itemPayed
+                    payed: false
                 )
                 modelContext.insert(newItem)
             }
@@ -284,6 +284,18 @@ struct EntryDetailNavigationView: View {
                 try modelContext.save()
             } catch {
                 print("Error deleting items: \(error)")
+            }
+        }
+    }
+    
+    private func toggleItemPayment(_ item: Item) {
+        withAnimation {
+            item.payed = !(item.payed == true)
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error updating item payment status: \(error)")
             }
         }
     }
@@ -356,6 +368,8 @@ struct EntryDetailView: View {
                         ForEach(items, id: \.id) { item in
                             ItemRowView(item: item, entry: entry, onEdit: {
                                 prepareForEditItem(item)
+                            }, onTogglePayment: {
+                                toggleItemPayment(item)
                             })
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
@@ -457,7 +471,6 @@ struct EntryDetailView: View {
         itemMoney = ""
         itemAmount = "1"
         itemDescription = ""
-        itemPayed = false
         editingItem = nil
         showingAddItem = true
     }
@@ -485,7 +498,6 @@ struct EntryDetailView: View {
         itemMoney = ""
         itemAmount = ""
         itemDescription = ""
-        itemPayed = false
         editingItem = nil
         isSavingItem = false
     }
@@ -513,14 +525,14 @@ struct EntryDetailView: View {
                 editingItem.itemDescription = cleanedDescription
                 editingItem.payed = itemPayed
             } else {
-                // Create new item
+                // Create new item - always as unpaid (false)
                 let newItem = Item(
                     money: money,
                     amount: amount,
                     itemDescription: cleanedDescription,
                     entryId: entry.id,
                     position: nil,
-                    payed: itemPayed
+                    payed: false
                 )
                 modelContext.insert(newItem)
             }
@@ -579,17 +591,40 @@ struct EntryDetailView: View {
             }
         }
     }
+    
+    private func toggleItemPayment(_ item: Item) {
+        withAnimation {
+            item.payed = !(item.payed == true)
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Error updating item payment status: \(error)")
+            }
+        }
+    }
 }
 
 struct ItemRowView: View {
     let item: Item
     let entry: Entry // Add entry parameter to know the type
     var onEdit: (() -> Void)?
+    var onTogglePayment: (() -> Void)?
     
     @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
     
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
+            // Payment toggle button
+            Button(action: {
+                onTogglePayment?()
+            }) {
+                Image(systemName: item.payed == true ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundColor(item.payed == true ? .green : .orange)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
                     Text(item.itemDescription)
@@ -741,29 +776,7 @@ struct AddItemSheet: View {
                 }
                 .padding(.horizontal)
                 
-                // Payed Section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Pagado")
-                        .font(.headline)
-                        .foregroundColor(Color(.systemGray))
-                    
-                    HStack {
-                        Text(itemPayed ? "Sí" : "No")
-                            .foregroundColor(.primary)
-                        Spacer()
-                        Toggle("", isOn: $itemPayed)
-                            .toggleStyle(SwitchToggleStyle(tint: .green))
-                            .disabled(isSaving)
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(.systemGray4), lineWidth: 1)
-                    )
-                }
-                .padding(.horizontal)
+
                 
                 Spacer()
             }
