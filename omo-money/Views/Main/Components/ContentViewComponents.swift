@@ -29,6 +29,10 @@ struct HeaderControlsView: View {
                 Menu {
                     ForEach(userHomeGroups, id: \.id) { homeGroup in
                         Button(action: {
+                            // Haptic feedback for better UX
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                            impactFeedback.impactOccurred()
+                            
                             onHomeGroupSelected(homeGroup.id)
                         }) {
                             HStack {

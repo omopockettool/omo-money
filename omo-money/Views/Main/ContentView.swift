@@ -205,6 +205,10 @@ struct ContentView: View {
                             selectedHomeGroupId = homeGroupId
                         },
                         onFiltersTapped: {
+                            // Haptic feedback for better UX
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                            impactFeedback.impactOccurred()
+                            
                             // Set temp values to current
                             let calendar = Calendar.current
                             tempSelectedMonth = calendar.component(.month, from: selectedMonthYear) - 1
@@ -377,6 +381,10 @@ struct ContentView: View {
     }
     
     private func prepareForNewEntry() {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         entryTitle = ""
         entryDate = Calendar.current.startOfDay(for: Date())
         entryCategory = EntryCategory.otros.rawValue
@@ -388,6 +396,10 @@ struct ContentView: View {
     }
     
     private func prepareForEditEntry(_ entry: Entry) {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         entryTitle = entry.title
         entryDate = entry.date
         entryCategory = entry.category
@@ -400,6 +412,10 @@ struct ContentView: View {
     }
     
     private func addEntry() {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         withAnimation {
             let cleanedTitle = entryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
             let newEntry = Entry(
@@ -419,7 +435,7 @@ struct ContentView: View {
                     itemDescription: cleanedTitle,
                     entryId: newEntry.id,
                     position: nil,
-                    payed: true
+                    payed: false
                 )
                 modelContext.insert(initialItem)
             }
@@ -433,6 +449,10 @@ struct ContentView: View {
     }
     
     private func updateEntry(_ entry: Entry) {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         withAnimation {
             let cleanedTitle = entryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
             entry.title = cleanedTitle

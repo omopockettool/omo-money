@@ -130,6 +130,10 @@ struct HomeGroupManagementSheet: View {
                             .padding(.vertical, 4)
                             .contentShape(Rectangle())
                             .onTapGesture {
+                                // Haptic feedback for better UX
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                impactFeedback.impactOccurred()
+                                
                                 if selectedHomeGroupId == homeGroup.id {
                                     // Si ya está seleccionado, cerrar el sheet
                                     isPresented = false

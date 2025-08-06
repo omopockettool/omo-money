@@ -164,6 +164,10 @@ struct EntryDetailNavigationView: View {
     }
     
     private func prepareForNewItem() {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         itemMoney = ""
         itemAmount = "1"
         itemDescription = ""
@@ -181,6 +185,10 @@ struct EntryDetailNavigationView: View {
     }
     
     private func prepareForEditEntry(_ entry: Entry) {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         entryTitle = entry.title
         entryDate = entry.date
         entryCategory = entry.category
@@ -201,6 +209,10 @@ struct EntryDetailNavigationView: View {
     @MainActor
     private func saveItem() async {
         guard !itemDescription.isEmpty else { return }
+        
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
         
         isSavingItem = true
         
@@ -250,6 +262,10 @@ struct EntryDetailNavigationView: View {
     }
     
     private func updateEntry(_ entry: Entry) {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         withAnimation {
             let cleanedTitle = entryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
             entry.title = cleanedTitle
@@ -289,6 +305,10 @@ struct EntryDetailNavigationView: View {
     }
     
     private func toggleItemPayment(_ item: Item) {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         withAnimation {
             item.payed = !(item.payed == true)
             
@@ -468,6 +488,10 @@ struct EntryDetailView: View {
     }
     
     private func prepareForNewItem() {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         itemMoney = ""
         itemAmount = "1"
         itemDescription = ""
@@ -485,6 +509,10 @@ struct EntryDetailView: View {
     }
     
     private func prepareForEditEntry(_ entry: Entry) {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         entryTitle = entry.title
         entryDate = entry.date
         entryCategory = entry.category
@@ -505,6 +533,10 @@ struct EntryDetailView: View {
     @MainActor
     private func saveItem() async {
         guard !itemDescription.isEmpty else { return }
+        
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
         
         isSavingItem = true
         
@@ -554,6 +586,10 @@ struct EntryDetailView: View {
     }
     
     private func updateEntry(_ entry: Entry) {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         withAnimation {
             let cleanedTitle = entryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
             entry.title = cleanedTitle
@@ -593,6 +629,10 @@ struct EntryDetailView: View {
     }
     
     private func toggleItemPayment(_ item: Item) {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
         withAnimation {
             item.payed = !(item.payed == true)
             
