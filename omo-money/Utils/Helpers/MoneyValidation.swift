@@ -60,4 +60,30 @@ func validateMoneyInput(_ input: String) -> String {
     let limitedDecimalPart = decimalPart.count > 2 ? String(decimalPart.prefix(2)) : decimalPart
     
     return "\(finalIntegerPart).\(limitedDecimalPart)"
+}
+
+// MARK: - Quantity Validation Helper
+func validateQuantityInput(_ input: String) -> String {
+    // Si está vacío, permitir
+    if input.isEmpty {
+        return input
+    }
+    
+    // Solo permitir números
+    let allowedCharacters = CharacterSet(charactersIn: "0123456789")
+    let filtered = input.filter { String($0).rangeOfCharacter(from: allowedCharacters) != nil }
+    
+    // Si no hay caracteres válidos, retornar vacío
+    if filtered.isEmpty {
+        return ""
+    }
+    
+    // Limitar a 6 dígitos máximo
+    if filtered.count > 6 {
+        return String(filtered.prefix(6))
+    }
+    
+    // Eliminar ceros a la izquierda, pero permitir un solo cero
+    let cleanedInput = filtered.replacingOccurrences(of: "^0+", with: "", options: .regularExpression)
+    return cleanedInput.isEmpty ? "0" : cleanedInput
 } 

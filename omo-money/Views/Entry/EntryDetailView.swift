@@ -679,7 +679,7 @@ struct ItemRowView: View {
                 }
                 
                 if let amount = item.amount {
-                    Text("Cantidad: \(amount)")
+                    Text("Cantidad: \(String(format: "%.0f", Double(amount) ?? 0))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -813,6 +813,13 @@ struct AddItemSheet: View {
                         .keyboardType(.numberPad)
                         .focused($focusedField, equals: .amount)
                         .disabled(isSaving)
+                        .onChange(of: itemAmount) { _, newValue in
+                            // Validar formato de cantidad (máximo 6 dígitos)
+                            let validatedValue = validateQuantityInput(newValue)
+                            if validatedValue != newValue {
+                                itemAmount = validatedValue
+                            }
+                        }
                 }
                 .padding(.horizontal)
                 
