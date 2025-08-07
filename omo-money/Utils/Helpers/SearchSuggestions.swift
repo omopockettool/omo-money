@@ -421,35 +421,53 @@ struct SearchFieldWithSuggestionsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Search Field
-            TextField(placeholder, text: $searchText)
-                .padding(8)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(.systemGray4), lineWidth: 1)
-                )
-                .autocorrectionDisabled()
-                .focused($isFieldFocused)
-                .onChange(of: searchText) { _, newValue in
-                    // Si acabamos de seleccionar una sugerencia, no regenerar
-                    if justSelectedSuggestion {
-                        justSelectedSuggestion = false
-                        return
+            // Search Field with Clear Button
+            HStack(spacing: 8) {
+                TextField(placeholder, text: $searchText)
+                    .autocorrectionDisabled()
+                    .focused($isFieldFocused)
+                    .onChange(of: searchText) { _, newValue in
+                        // Si acabamos de seleccionar una sugerencia, no regenerar
+                        if justSelectedSuggestion {
+                            justSelectedSuggestion = false
+                            return
+                        }
+                        
+                        suggestionsManager.generateSuggestions(
+                            from: newValue,
+                            entries: entries,
+                            items: items,
+                            excludeCurrent: excludeCurrent
+                        )
+                        showSuggestions = !newValue.isEmpty
                     }
-                    
-                    suggestionsManager.generateSuggestions(
-                        from: newValue,
-                        entries: entries,
-                        items: items,
-                        excludeCurrent: excludeCurrent
-                    )
-                    showSuggestions = !newValue.isEmpty
+                    .onTapGesture {
+                        showSuggestions = !searchText.isEmpty
+                    }
+                
+                // Clear Button (only show when there's text)
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                        suggestionsManager.clearSuggestions()
+                        showSuggestions = false
+                        isFieldFocused = false
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .transition(.opacity.combined(with: .scale))
                 }
-                .onTapGesture {
-                    showSuggestions = !searchText.isEmpty
-                }
+            }
+            .padding(8)
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(.systemGray4), lineWidth: 1)
+            )
             
             // Suggestions (mostrar siempre que haya texto, independientemente del foco)
             if showSuggestions && !searchText.isEmpty {

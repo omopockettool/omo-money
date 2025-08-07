@@ -26,163 +26,221 @@ struct FiltersSheet: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                // Date Filter Section
-                VStack(alignment: .leading, spacing: 12) {
-                    // Text("Fecha:")
-                    //     .font(.headline)
-                    //     .foregroundColor(.primary)
-                    
-                    HStack(spacing: 12) {
-                        // Month Dropdown
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Mes")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Menu {
-                                // "All months" option
-                                Button(action: {
-                                    tempShowAllMonths = true
-                                }) {
-                                    HStack {
-                                        Text("Todos los meses")
-                                        if tempShowAllMonths {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                                
-                                Divider()
-                                
-                                // Individual months
-                                ForEach(getMonthOptions(), id: \.index) { month in
-                                    Button(action: {
-                                        tempSelectedMonth = month.index
-                                        tempShowAllMonths = false
-                                    }) {
-                                        HStack {
-                                            Text(month.name)
-                                            if tempSelectedMonth == month.index && !tempShowAllMonths {
-                                                Image(systemName: "checkmark")
-                                            }
-                                        }
-                                    }
-                                }
-                            } label: {
-                                HStack {
-                                    if tempShowAllMonths {
-                                        Text("Todos los meses")
-                                            .foregroundColor(.primary)
-                                    } else {
-                                        Text(getMonthOptions().first { $0.index == tempSelectedMonth }?.name ?? "Seleccionar")
-                                            .foregroundColor(.primary)
-                                    }
-                                    Spacer()
-                                    Image(systemName: "chevron.down")
-                                        .foregroundColor(.gray)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                            }
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Search Filter Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.red)
+                                .font(.title2)
+                            Text("Búsqueda")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
                         }
                         
-                        // Year Dropdown
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Año")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Menu {
-                                ForEach(getYearOptions(), id: \.self) { year in
-                                    Button(action: {
-                                        tempSelectedYear = year
-                                    }) {
-                                        HStack {
-                                            Text(String(year))
-                                            if tempSelectedYear == year {
-                                                Image(systemName: "checkmark")
-                                            }
+                        SearchFieldWithSuggestionsView(
+                            searchText: $tempSearchText,
+                            entries: entries,
+                            items: items,
+                            placeholder: "Buscar en entradas e items...",
+                            excludeCurrent: nil
+                        ) { selectedText in
+                            print("Sugerencia seleccionada: \(selectedText)")
+                        }
+                    }
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    )
+                    
+                    // Category Filter Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "tag")
+                                .foregroundColor(.red)
+                                .font(.title2)
+                            Text("Categoría")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                        }
+                        
+                        Menu {
+                            ForEach(getCategoryOptions(), id: \.self) { category in
+                                Button(action: {
+                                    tempSelectedCategory = category
+                                }) {
+                                    HStack {
+                                        Text(category)
+                                        if tempSelectedCategory == category {
+                                            Image(systemName: "checkmark")
+                                                .foregroundColor(.red)
                                         }
                                     }
                                 }
-                            } label: {
-                                HStack {
-                                    Text(String(tempSelectedYear))
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                    Image(systemName: "chevron.down")
-                                        .foregroundColor(.gray)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
                             }
+                        } label: {
+                            HStack {
+                                Text(tempSelectedCategory)
+                                    .foregroundColor(.primary)
+                                    .font(.body)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.gray)
+                                    .font(.caption)
+                            }
+                            .padding(16)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                            )
                         }
                     }
-                }
-                .padding(.horizontal)
-                
-                // Category Filter Section
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Categoría:")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    )
                     
-                    Menu {
-                        ForEach(getCategoryOptions(), id: \.self) { category in
-                            Button(action: {
-                                tempSelectedCategory = category
-                            }) {
-                                HStack {
-                                    Text(category)
-                                    if tempSelectedCategory == category {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
+                    // Date Filter Section
+                    VStack(alignment: .leading, spacing: 16) {
                         HStack {
-                            Text(tempSelectedCategory)
+                            Image(systemName: "calendar")
+                                .foregroundColor(.red)
+                                .font(.title2)
+                            Text("Período")
+                                .font(.headline)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.primary)
-                            Spacer()
-                            Image(systemName: "chevron.down")
-                                .foregroundColor(.gray)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
+                        
+                        HStack(spacing: 12) {
+                            // Month Dropdown
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Mes")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.secondary)
+                                
+                                Menu {
+                                    // "All months" option
+                                    Button(action: {
+                                        tempShowAllMonths = true
+                                    }) {
+                                        HStack {
+                                            Text("Todos los meses")
+                                            if tempShowAllMonths {
+                                                Image(systemName: "checkmark")
+                                                    .foregroundColor(.red)
+                                            }
+                                        }
+                                    }
+                                    
+                                    Divider()
+                                    
+                                    // Individual months
+                                    ForEach(getMonthOptions(), id: \.index) { month in
+                                        Button(action: {
+                                            tempSelectedMonth = month.index
+                                            tempShowAllMonths = false
+                                        }) {
+                                            HStack {
+                                                Text(month.name)
+                                                if tempSelectedMonth == month.index && !tempShowAllMonths {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundColor(.red)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        if tempShowAllMonths {
+                                            Text("Todos")
+                                                .foregroundColor(.primary)
+                                                .font(.body)
+                                        } else {
+                                            Text(getMonthOptions().first { $0.index == tempSelectedMonth }?.name ?? "Seleccionar")
+                                                .foregroundColor(.primary)
+                                                .font(.body)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.down")
+                                            .foregroundColor(.gray)
+                                            .font(.caption)
+                                    }
+                                    .padding(16)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                                }
+                            }
+                            
+                            // Year Dropdown
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Año")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.secondary)
+                                
+                                Menu {
+                                    ForEach(getYearOptions(), id: \.self) { year in
+                                        Button(action: {
+                                            tempSelectedYear = year
+                                        }) {
+                                            HStack {
+                                                Text(String(year))
+                                                if tempSelectedYear == year {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundColor(.red)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(String(tempSelectedYear))
+                                            .foregroundColor(.primary)
+                                            .font(.body)
+                                        Spacer()
+                                        Image(systemName: "chevron.down")
+                                            .foregroundColor(.gray)
+                                            .font(.caption)
+                                    }
+                                    .padding(16)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-                .padding(.horizontal)
-                
-                // Search Section with Suggestions
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Búsqueda:")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    )
                     
-                    SearchFieldWithSuggestionsView(
-                        searchText: $tempSearchText,
-                        entries: entries,
-                        items: items,
-                        placeholder: "Buscar en entradas e items...",
-                        excludeCurrent: nil
-                    ) { selectedText in
-                        // La sugerencia ya se aplica automáticamente al campo
-                        print("Sugerencia seleccionada: \(selectedText)")
-                    }
+                    // Spacer to push content to top
+                    Spacer(minLength: 20)
                 }
-                .padding(.horizontal)
-                
-                Spacer()
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
             }
-            .padding(.vertical)
             .navigationTitle("Filtros")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
