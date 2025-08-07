@@ -389,7 +389,7 @@ struct EntryFormView: View {
  
                 Spacer()
                 
-                Button("Done") {
+                Button("Hecho") {
                     focusedField = nil
                 }
                 .foregroundColor(.red)
@@ -797,7 +797,7 @@ struct AddEntrySheet: View {
  
                     Spacer()
                     
-                    Button("Done") {
+                    Button("Hecho") {
                         focusedField = nil
                     }
                     .foregroundColor(.red)

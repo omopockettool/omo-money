@@ -5,6 +5,86 @@ All notable changes to OMO Money will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2025-08-07
+
+### 🎨 UI/UX Improvements
+- **Enhanced Filters Sheet Design**:
+  - Improved contrast with medium to dark gray boxes for better visibility
+  - Added subtle borders (0.5px for sections, 1px for dropdowns) for better definition
+  - Updated color scheme: `systemGray6` for section backgrounds, `systemGray5` for dropdowns
+  - Better visual separation between sections with consistent styling
+  - Enhanced appearance on both light and dark themes
+- **Category Filter Organization**:
+  - Added visual separator (Divider) between "Todas" option and individual categories
+  - Consistent structure with month filter dropdown
+  - Better visual hierarchy and user experience
+  - Clear distinction between "all categories" and specific category options
+
+### 🔧 Technical Improvements
+- **Color System Updates**:
+  - Replaced `secondarySystemGroupedBackground` with `systemGray6` for better contrast
+  - Added border overlays using `systemGray4` and `systemGray3` for definition
+  - Consistent color scheme across all filter sections
+  - Improved dark mode compatibility and visual hierarchy
+
+### 📱 User Experience
+- **Better Visual Contrast**: Gray boxes now provide proper contrast against white backgrounds
+- **Consistent Design**: All filter sections now have uniform styling
+- **Improved Readability**: Better visual separation between filter options
+- **Enhanced Accessibility**: Better contrast ratios for improved readability
+
+## [1.4.0] - 2025-08-07
+
+### 🚀 Performance Optimizations
+- **Instant Operations**: Eliminated all artificial delays for instant user feedback
+- **Toggle Payment**: Now responds instantly like iOS Reminders app
+- **Item Creation**: Removed 0.3s delay, now saves immediately
+- **Item Deletion**: Instant deletion without animation delays
+- **Entry Deletion**: Instant deletion without animation delays
+- **Search Operations**: Optimized search performance and responsiveness
+- **Database Operations**: All save operations now execute immediately
+
+### 🎯 UX Improvements
+- **Loading Indicators**: Added spinner to "Aplicar" button in filters for better feedback
+- **Search Highlighting**: 
+  - Magnifying glass icon for entries with matching items
+  - Dynamic totals showing only matching items when search is active
+  - "Filtrado" indicator in total spent widget during search
+  - Visual highlighting of matching items within entries
+- **Filters Sheet**: 
+  - Redesigned with elegant card-style layout
+  - Better organized sections (Search, Category, Period)
+  - Improved visual hierarchy and spacing
+  - Enhanced user experience with clear visual separation
+- **Search Field**: 
+  - Clear "X" button for better aesthetics
+  - "Cerrar" button in keyboard toolbar for intuitive dismissal
+  - Enhanced search suggestions with intelligent matching
+  - Improved search performance and responsiveness
+
+### 🔧 Technical Improvements
+- **Removed Task.detached**: Eliminated unnecessary async operations
+- **Removed Task.sleep**: Eliminated artificial delays (0.3s)
+- **Optimized withAnimation**: Removed animations from critical operations
+- **Direct Currency Passing**: Optimized currency symbol lookup
+- **Immediate Save Operations**: All database operations now save instantly
+- **Synchronous Operations**: Converted async operations to sync for better performance
+- **Reduced Database Queries**: Optimized currency symbol access patterns
+
+### 📱 User Experience
+- **Instant Feedback**: All user actions now respond immediately
+- **Smooth Interactions**: Fluid, native iOS-like experience
+- **Better Visual Feedback**: Enhanced loading states and indicators
+- **Intuitive Navigation**: Improved keyboard handling and dismissal
+- **Native iOS Feel**: App now behaves like built-in iOS apps (Reminders, Notes)
+- **Responsive Interface**: No more waiting for operations to complete
+
+### 🐛 Bug Fixes
+- **Performance Issues**: Fixed slow item creation and deletion
+- **Toggle Delays**: Fixed slow payment status changes
+- **Search Performance**: Improved search responsiveness after filters
+- **Animation Conflicts**: Resolved animation delays affecting user interactions
+
 ## [1.4.0] - 2025-08-06
 
 ### Added

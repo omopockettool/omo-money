@@ -444,6 +444,16 @@ struct SearchFieldWithSuggestionsView: View {
                     .onTapGesture {
                         showSuggestions = !searchText.isEmpty
                     }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            
+                            Button("Cerrar") {
+                                isFieldFocused = false
+                            }
+                            .foregroundColor(.red)
+                        }
+                    }
                 
                 // Clear Button (only show when there's text)
                 if !searchText.isEmpty {

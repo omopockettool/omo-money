@@ -13,9 +13,27 @@ struct EntryRowView: View {
     @Query private var allItems: [Item]
     @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
     var onEdit: (() -> Void)?
+    var searchMatch: SearchMatch? = nil // Add search match parameter
     
     var items: [Item] {
         allItems.filter { $0.entryId == entry.id }
+    }
+    
+    // Get matching items for search
+    var matchingItems: [Item] {
+        guard let searchMatch = searchMatch, !searchMatch.matchingItemIds.isEmpty else { return [] }
+        return items.filter { searchMatch.matchingItemIds.contains($0.id) }
+    }
+    
+    // Calculate total based on search context
+    var displayTotal: Double {
+        if let searchMatch = searchMatch, !searchMatch.matchingItemIds.isEmpty {
+            // If searching for items, show total of matching items only
+            return matchingItems.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
+        } else {
+            // Normal total calculation
+            return items.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
+        }
     }
     
     // Computed property to determine payment status
@@ -39,38 +57,71 @@ struct EntryRowView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 16) {
-                Text(entry.title)
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                // Entry title with search highlighting
+                if let searchMatch = searchMatch, searchMatch.isEntryTitleMatch {
+                    Text(entry.title)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.yellow.opacity(0.3))
+                                .padding(.horizontal, -4)
+                                .padding(.vertical, -2)
+                        )
+                } else {
+                    Text(entry.title)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                }
                 
                 HStack(spacing: 8) {
-                    Text(entry.category.capitalized)
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(categoryColor(entry.category))
-                        .foregroundColor(.white)
-                        .cornerRadius(4)
+                    // Category with search highlighting
+                    if let searchMatch = searchMatch, searchMatch.isEntryCategoryMatch {
+                        Text(entry.category.capitalized)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.yellow.opacity(0.3))
+                            )
+                            .foregroundColor(.primary)
+                    } else {
+                        Text(entry.category.capitalized)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(categoryColor(entry.category))
+                            .foregroundColor(.white)
+                            .cornerRadius(4)
+                    }
                     
                     // Payment status icon (smaller size) - only show if there are items
                     if !items.isEmpty {
                         paymentStatusIconSmall
+                    }
+                    
+                    // Search indicator icon - show when there are matching items
+                    if let searchMatch = searchMatch, !searchMatch.matchingItemIds.isEmpty {
+                        Image(systemName: "magnifyingglass")
+                            .font(.caption)
+                            .foregroundColor(.orange)
                     }
                 }
             }
             
             Spacer()
             
-            // Show total amount and status if there are items
-            if !items.isEmpty {
-                let paidItems = items.filter { $0.payed == true }
-                let unpaidItems = items.filter { $0.payed != true }
-                let totalPaid = paidItems.reduce(0) { $0 + $1.money }
-                let totalUnpaid = unpaidItems.reduce(0) { $0 + $1.money }
-                
-                // Get currency from home group
-                let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
-                let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
+                            // Show total amount and status if there are items
+                if !items.isEmpty {
+                    let paidItems = items.filter { $0.payed == true }
+                    let unpaidItems = items.filter { $0.payed != true }
+                    let totalPaid = displayTotal
+                    let totalUnpaid = unpaidItems.reduce(0) { $0 + $1.money }
+                    
+                    // Get currency from home group
+                    let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
+                    let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
                 
                 VStack(alignment: .trailing, spacing: 4) {
                     // Show total paid amount (always show if there are paid items)
@@ -99,6 +150,7 @@ struct EntryRowView: View {
                     .foregroundColor(.secondary)
             }
         }
+        // Remove background highlight for items - keep only title and category highlighting
     }
     
     // Computed property for payment status icon (smaller size)

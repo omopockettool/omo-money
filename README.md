@@ -2,6 +2,8 @@
 
 A personal expense management app built with SwiftUI and SwiftData.
 
+
+
 ## Project Structure
 
 ```
@@ -20,7 +22,11 @@ omo-money/
 │       └── Enums.swift            # App enums (EntryCategory, Currency)
 ├── Views/
 │   ├── Main/
-│   │   └── ContentView.swift      # Main content view
+│   │   ├── ContentView.swift      # Main content view
+│   │   └── Components/
+│   │       ├── ContentViewComponents.swift # Main view components
+│   │       ├── EmptyStateComponents.swift  # Empty state components
+│   │       └── FilteringLogic.swift        # Filtering logic
 │   ├── Entry/
 │   │   ├── EntryFormView.swift    # Entry creation/editing form
 │   │   ├── EntryDetailView.swift  # Entry detail view
@@ -43,7 +49,8 @@ omo-money/
 │   ├── Extensions/
 │   │   └── DateFormatter.swift    # Date formatting utilities
 │   ├── Helpers/
-│   │   └── MoneyValidation.swift  # Money input validation
+│   │   ├── MoneyValidation.swift  # Money input validation
+│   │   └── SearchSuggestions.swift # Search suggestions and intelligent search
 │   └── Constants/                 # Ready for future constants
 ├── Services/                      # Ready for future services
 └── Assets.xcassets/               # App assets
@@ -80,9 +87,11 @@ omo-money/
 - **Category Management**: Organize expenses by categories
 - **Home Groups**: Manage expenses for different groups (family, roommates, etc.)
 - **Item Details**: Break down expenses into individual items
-- **Filtering & Search**: Advanced filtering and search capabilities
+- **Filtering & Search**: Advanced filtering and search capabilities with intelligent matching
 - **Multi-Currency Support**: Support for different currencies
 - **Payment Status**: Track paid and pending items
+- **Instant Operations**: All actions respond immediately for optimal user experience
+- **Search Highlighting**: Visual indicators for search results and dynamic totals
 
 ## Data Models
 
@@ -129,6 +138,13 @@ omo-money/
 - Use `@Binding` for parent-child communication
 - Use `@Environment` for app-wide values
 - Keep views composable and reusable
+- Prioritize instant user feedback over animations
+
+### Performance Guidelines
+- Avoid artificial delays (`Task.sleep`)
+- Use immediate save operations
+- Minimize `withAnimation` for critical operations
+- Optimize database queries and operations
 
 ## Future Enhancements
 

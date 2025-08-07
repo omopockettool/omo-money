@@ -72,7 +72,7 @@ struct ContentView: View {
     }
     
     // Main filtered entries computed property
-    var filteredEntries: [Entry] {
+    var filteredEntriesData: (entries: [Entry], searchMatches: [SearchMatch]) {
         return FilteringLogic.getFilteredEntries(
             entries: entries,
             allItems: allItems,
@@ -84,6 +84,15 @@ struct ContentView: View {
         )
     }
     
+    // Computed properties for backward compatibility
+    var filteredEntries: [Entry] {
+        return filteredEntriesData.entries
+    }
+    
+    var searchMatches: [SearchMatch] {
+        return filteredEntriesData.searchMatches
+    }
+    
     // Group entries by date with stable section identifiers
     var entriesByDate: [(date: Date, entries: [Entry], sectionId: String)] {
         return FilteringLogic.groupEntriesByDate(filteredEntries)
@@ -91,7 +100,7 @@ struct ContentView: View {
     
     // Calculate total spent
     var totalSpent: Double {
-        return FilteringLogic.calculateTotalSpent(filteredEntries, allItems: allItems)
+        return FilteringLogic.calculateTotalSpent(filteredEntries, allItems: allItems, searchMatches: searchMatches)
     }
     
     // MARK: - Main Content View
@@ -112,6 +121,7 @@ struct ContentView: View {
             // Show entries list
             EntriesListView(
                 entriesByDate: entriesByDate,
+                searchMatches: searchMatches,
                 onEntryTapped: { entry in
                     selectedEntry = entry
                     navigateToEntryDetail = true
@@ -227,6 +237,7 @@ struct ContentView: View {
                     TotalSpentWidgetView(
                         currentHomeGroup: currentHomeGroup,
                         totalSpent: totalSpent,
+                        searchText: searchText,
                         onAddEntry: prepareForNewEntry
                     )
                 }
@@ -360,7 +371,7 @@ struct ContentView: View {
                 Group {
                     if let selectedEntry = selectedEntry {
                         NavigationLink(
-                            destination: EntryDetailNavigationView(entry: selectedEntry),
+                            destination: EntryDetailNavigationView(entry: selectedEntry, searchMatches: searchMatches),
                             isActive: $navigateToEntryDetail
                         ) {
                             EmptyView()
@@ -470,25 +481,22 @@ struct ContentView: View {
     }
     
     private func deleteEntries(_ entries: [Entry]) {
-        withAnimation {
-            for entry in entries {
-                // Borrar todos los items asociados a este entry
-                let itemsToDelete = allItems.filter { $0.entryId == entry.id }
-                for item in itemsToDelete {
-                    modelContext.delete(item)
-                }
-                modelContext.delete(entry)
+        // Delete immediately without animation for instant feedback
+        for entry in entries {
+            // Borrar todos los items asociados a este entry
+            let itemsToDelete = allItems.filter { $0.entryId == entry.id }
+            for item in itemsToDelete {
+                modelContext.delete(item)
             }
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error deleting entries: \(error)")
-            }
+            modelContext.delete(entry)
+        }
+        
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error deleting entries: \(error)")
         }
     }
-    
-
 }
 
 #Preview {

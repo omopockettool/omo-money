@@ -11,10 +11,16 @@ import SwiftData
 // MARK: - Navigation-based Entry Detail View
 struct EntryDetailNavigationView: View {
     let entry: Entry
+    let searchMatches: [SearchMatch] // Add search matches parameter
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
     @Query private var allItems: [Item]
+    
+    var items: [Item] {
+        allItems.filter { $0.entryId == entry.id }
+    }
+    
     @State private var showingAddItem = false
     @State private var showingEditItem = false
     @State private var showingEditEntry = false
@@ -31,10 +37,6 @@ struct EntryDetailNavigationView: View {
     @State private var entryMoney = ""
     @State private var editingEntry: Entry? = nil
     @State private var isSavingItem = false
-    
-    var items: [Item] {
-        allItems.filter { $0.entryId == entry.id }
-    }
     
     var body: some View {
         VStack {
@@ -71,12 +73,23 @@ struct EntryDetailNavigationView: View {
                 .padding()
             } else {
                 List {
+                    let searchMatch = searchMatches.first { $0.entryId == entry.id }
+                    
                     ForEach(items, id: \.id) { item in
-                        ItemRowView(item: item, entry: entry, onEdit: {
-                            prepareForEditItem(item)
-                        }, onTogglePayment: {
-                            toggleItemPayment(item)
-                        })
+                        let isItemMatch = searchMatch?.matchingItemIds.contains(item.id) ?? false
+                        
+                        ItemRowView(
+                            item: item, 
+                            entry: entry, 
+                            onEdit: {
+                                prepareForEditItem(item)
+                            }, 
+                            onTogglePayment: {
+                                toggleItemPayment(item)
+                            },
+                            isSearchMatch: isItemMatch,
+                            currencySymbol: Currency(rawValue: "USD")?.symbol ?? "$"
+                        )
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 deleteItems([item])
@@ -129,9 +142,7 @@ struct EntryDetailNavigationView: View {
                 editingItem: $editingItem,
                 isSaving: $isSavingItem,
                 onSave: {
-                    Task {
-                        await saveItem()
-                    }
+                    saveItem()
                 }
             )
             .onDisappear {
@@ -206,8 +217,7 @@ struct EntryDetailNavigationView: View {
         isSavingItem = false
     }
     
-    @MainActor
-    private func saveItem() async {
+    private func saveItem() {
         guard !itemDescription.isEmpty else { return }
         
         // Haptic feedback for better UX
@@ -246,13 +256,9 @@ struct EntryDetailNavigationView: View {
             }
         }
         
-        // Save asynchronously with a small delay for better UX
+        // Save immediately
         do {
-            try await Task.detached {
-                // Add a small delay to show the loading indicator
-                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-                try modelContext.save()
-            }.value
+            try modelContext.save()
         } catch {
             print("Error saving item: \(error)")
         }
@@ -291,16 +297,15 @@ struct EntryDetailNavigationView: View {
     }
     
     private func deleteItems(_ items: [Item]) {
-        withAnimation {
-            for item in items {
-                modelContext.delete(item)
-            }
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error deleting items: \(error)")
-            }
+        // Delete immediately without animation for instant feedback
+        for item in items {
+            modelContext.delete(item)
+        }
+        
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error deleting items: \(error)")
         }
     }
     
@@ -309,14 +314,14 @@ struct EntryDetailNavigationView: View {
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
         
-        withAnimation {
-            item.payed = !(item.payed == true)
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error updating item payment status: \(error)")
-            }
+        // Change state immediately without animation for instant feedback
+        item.payed = !(item.payed == true)
+        
+        // Save immediately
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error updating item payment status: \(error)")
         }
     }
 }
@@ -328,6 +333,11 @@ struct EntryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     @Query private var allItems: [Item]
+    
+    var items: [Item] {
+        allItems.filter { $0.entryId == entry.id }
+    }
+    
     @State private var showingAddItem = false
     @State private var showingEditItem = false
     @State private var showingEditEntry = false
@@ -344,10 +354,6 @@ struct EntryDetailView: View {
     @State private var entryMoney = ""
     @State private var editingEntry: Entry? = nil
     @State private var isSavingItem = false
-    
-    var items: [Item] {
-        allItems.filter { $0.entryId == entry.id }
-    }
     
     var body: some View {
         NavigationView {
@@ -386,11 +392,17 @@ struct EntryDetailView: View {
                 } else {
                     List {
                         ForEach(items, id: \.id) { item in
-                            ItemRowView(item: item, entry: entry, onEdit: {
-                                prepareForEditItem(item)
-                            }, onTogglePayment: {
-                                toggleItemPayment(item)
-                            })
+                            ItemRowView(
+                                item: item, 
+                                entry: entry, 
+                                onEdit: {
+                                    prepareForEditItem(item)
+                                }, 
+                                onTogglePayment: {
+                                    toggleItemPayment(item)
+                                },
+                                currencySymbol: Currency(rawValue: "USD")?.symbol ?? "$"
+                            )
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
                                     deleteItems([item])
@@ -452,9 +464,7 @@ struct EntryDetailView: View {
                     editingItem: $editingItem,
                     isSaving: $isSavingItem,
                     onSave: {
-                        Task {
-                            await saveItem()
-                        }
+                        saveItem()
                     }
                 )
                 .onDisappear {
@@ -530,8 +540,7 @@ struct EntryDetailView: View {
         isSavingItem = false
     }
     
-    @MainActor
-    private func saveItem() async {
+    private func saveItem() {
         guard !itemDescription.isEmpty else { return }
         
         // Haptic feedback for better UX
@@ -570,13 +579,9 @@ struct EntryDetailView: View {
             }
         }
         
-        // Save asynchronously with a small delay for better UX
+        // Save immediately
         do {
-            try await Task.detached {
-                // Add a small delay to show the loading indicator
-                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-                try modelContext.save()
-            }.value
+            try modelContext.save()
         } catch {
             print("Error saving item: \(error)")
         }
@@ -615,16 +620,15 @@ struct EntryDetailView: View {
     }
     
     private func deleteItems(_ items: [Item]) {
-        withAnimation {
-            for item in items {
-                modelContext.delete(item)
-            }
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error deleting items: \(error)")
-            }
+        // Delete immediately without animation for instant feedback
+        for item in items {
+            modelContext.delete(item)
+        }
+        
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error deleting items: \(error)")
         }
     }
     
@@ -633,14 +637,14 @@ struct EntryDetailView: View {
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
         
-        withAnimation {
-            item.payed = !(item.payed == true)
-            
-            do {
-                try modelContext.save()
-            } catch {
-                print("Error updating item payment status: \(error)")
-            }
+        // Change state immediately without animation for instant feedback
+        item.payed = !(item.payed == true)
+        
+        // Save immediately
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error updating item payment status: \(error)")
         }
     }
 }
@@ -650,8 +654,10 @@ struct ItemRowView: View {
     let entry: Entry // Add entry parameter to know the type
     var onEdit: (() -> Void)?
     var onTogglePayment: (() -> Void)?
+    var isSearchMatch: Bool = false // Add search match parameter
     
-    @Query(sort: \HomeGroup.createdAt) private var homeGroups: [HomeGroup]
+    // Pass currency directly instead of querying all home groups
+    let currencySymbol: String
     
     var body: some View {
         HStack(spacing: 12) {
@@ -667,9 +673,22 @@ struct ItemRowView: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text(item.itemDescription)
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                    // Item description with search highlighting
+                    if isSearchMatch {
+                        Text(item.itemDescription)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.yellow.opacity(0.3))
+                                    .padding(.horizontal, -4)
+                                    .padding(.vertical, -2)
+                            )
+                    } else {
+                        Text(item.itemDescription)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                    }
                     
                     if item.payed != true {
                         Text("(Pendiente)")
@@ -686,10 +705,6 @@ struct ItemRowView: View {
             }
             
             Spacer()
-            
-            // Get currency from home group
-            let homeGroup = homeGroups.first { $0.id == entry.homeGroupId }
-            let currencySymbol = Currency(rawValue: homeGroup?.currency ?? "USD")?.symbol ?? "$"
             
             if item.money > 0 {
                 Text("\(String(format: "%.2f", item.money))\(currencySymbol)")

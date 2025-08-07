@@ -24,6 +24,8 @@ struct FiltersSheet: View {
     let entries: [Entry]
     let items: [Item]
     
+    @State private var isApplyingFilters = false
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -53,8 +55,11 @@ struct FiltersSheet: View {
                     .padding(20)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                            .fill(Color(.systemGray6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+                            )
                     )
                     
                     // Category Filter Section
@@ -70,13 +75,29 @@ struct FiltersSheet: View {
                         }
                         
                         Menu {
-                            ForEach(getCategoryOptions(), id: \.self) { category in
+                            // "Todas" option
+                            Button(action: {
+                                tempSelectedCategory = "Todas"
+                            }) {
+                                HStack {
+                                    Text("Todas")
+                                    if tempSelectedCategory == "Todas" {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.red)
+                                    }
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            // Individual categories
+                            ForEach(EntryCategory.allCases, id: \.self) { category in
                                 Button(action: {
-                                    tempSelectedCategory = category
+                                    tempSelectedCategory = category.displayName
                                 }) {
                                     HStack {
-                                        Text(category)
-                                        if tempSelectedCategory == category {
+                                        Text(category.displayName)
+                                        if tempSelectedCategory == category.displayName {
                                             Image(systemName: "checkmark")
                                                 .foregroundColor(.red)
                                         }
@@ -94,19 +115,22 @@ struct FiltersSheet: View {
                                     .font(.caption)
                             }
                             .padding(16)
-                            .background(Color(.systemGray6))
+                            .background(Color(.systemGray5))
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                                    .stroke(Color(.systemGray3), lineWidth: 1)
                             )
                         }
                     }
                     .padding(20)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                            .fill(Color(.systemGray6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+                            )
                     )
                     
                     // Date Filter Section
@@ -177,11 +201,11 @@ struct FiltersSheet: View {
                                             .font(.caption)
                                     }
                                     .padding(16)
-                                    .background(Color(.systemGray6))
+                                    .background(Color(.systemGray5))
                                     .cornerRadius(12)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                            .stroke(Color(.systemGray3), lineWidth: 1)
                                     )
                                 }
                             }
@@ -218,11 +242,11 @@ struct FiltersSheet: View {
                                             .font(.caption)
                                     }
                                     .padding(16)
-                                    .background(Color(.systemGray6))
+                                    .background(Color(.systemGray5))
                                     .cornerRadius(12)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                            .stroke(Color(.systemGray3), lineWidth: 1)
                                     )
                                 }
                             }
@@ -231,8 +255,11 @@ struct FiltersSheet: View {
                     .padding(20)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                            .fill(Color(.systemGray6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+                            )
                     )
                     
                     // Spacer to push content to top
@@ -271,47 +298,71 @@ struct FiltersSheet: View {
                         isPresented = false
                     }
                     .foregroundColor(.gray)
+                    .disabled(isApplyingFilters)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Aplicar") {
-                        // Update the main state to reflect the applied filter
-                        showAllMonths = tempShowAllMonths
-                        selectedCategory = tempSelectedCategory
-                        searchText = tempSearchText
-                        
-                        // Update selectedMonthYear to reflect the current filter
-                        let calendar = Calendar.current
-                        if tempShowAllMonths {
-                            // For "all months", set to first day of the year
-                            var components = DateComponents()
-                            components.year = tempSelectedYear
-                            components.month = 1
-                            components.day = 1
-                            
-                            if let newDate = calendar.date(from: components) {
-                                selectedMonthYear = newDate
-                            }
+                    Group {
+                        if isApplyingFilters {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .foregroundColor(.red)
                         } else {
-                            // Convert month and year to Date
-                            var components = DateComponents()
-                            components.year = tempSelectedYear
-                            components.month = tempSelectedMonth + 1
-                            components.day = 1
-                            
-                            if let newDate = calendar.date(from: components) {
-                                selectedMonthYear = newDate
+                            Button("Aplicar") {
+                                applyFilters()
                             }
+                            .foregroundColor(.red)
                         }
-                        
-                        isPresented = false
                     }
-                    .foregroundColor(.red)
                 }
             }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+    }
+    
+    // MARK: - Filter Application
+    private func applyFilters() {
+        // Haptic feedback for better UX
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        // Show loading indicator
+        isApplyingFilters = true
+        
+        // Process filters immediately
+        // Update the main state to reflect the applied filter
+        showAllMonths = tempShowAllMonths
+        selectedCategory = tempSelectedCategory
+        searchText = tempSearchText
+        
+        // Update selectedMonthYear to reflect the current filter
+        let calendar = Calendar.current
+        if tempShowAllMonths {
+            // For "all months", set to first day of the year
+            var components = DateComponents()
+            components.year = tempSelectedYear
+            components.month = 1
+            components.day = 1
+            
+            if let newDate = calendar.date(from: components) {
+                selectedMonthYear = newDate
+            }
+        } else {
+            // Convert month and year to Date
+            var components = DateComponents()
+            components.year = tempSelectedYear
+            components.month = tempSelectedMonth + 1
+            components.day = 1
+            
+            if let newDate = calendar.date(from: components) {
+                selectedMonthYear = newDate
+            }
+        }
+        
+        // Hide loading indicator and close sheet immediately after processing
+        isApplyingFilters = false
+        isPresented = false
     }
     
     // Helper functions (need to be accessible)
@@ -329,6 +380,7 @@ struct FiltersSheet: View {
         return Array(2020...currentYear).reversed()
     }
     
+    // Esta función ya no se usa, pero la mantenemos por compatibilidad
     private func getCategoryOptions() -> [String] {
         return ["Todas"] + EntryCategory.allCases.map { $0.displayName }
     }

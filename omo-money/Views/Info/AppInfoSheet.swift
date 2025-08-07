@@ -199,7 +199,7 @@ struct AppInfoSheet: View {
                             Text("Versión")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text("1.4.0")
+                            Text("1.4.1")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)

@@ -8,6 +8,14 @@
 import Foundation
 import SwiftData
 
+// MARK: - Search Match Structure
+struct SearchMatch {
+    let entryId: String
+    let isEntryTitleMatch: Bool
+    let isEntryCategoryMatch: Bool
+    let matchingItemIds: [String]
+}
+
 // MARK: - Filtering Logic
 struct FilteringLogic {
     
@@ -62,35 +70,57 @@ struct FilteringLogic {
         }
     }
     
-    // Filter entries by search text
-    static func filterEntriesBySearch(_ entries: [Entry], searchText: String, allItems: [Item]) -> [Entry] {
+    // Filter entries by search text and return matches
+    static func filterEntriesBySearch(_ entries: [Entry], searchText: String, allItems: [Item]) -> (entries: [Entry], matches: [SearchMatch]) {
         if searchText.isEmpty {
-            return entries
+            return (entries, [])
         }
         
         let searchLower = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         
         if searchLower.isEmpty {
-            return entries
+            return (entries, [])
         }
         
-        return entries.filter { entry in
+        var matchingEntries: [Entry] = []
+        var searchMatches: [SearchMatch] = []
+        
+        for entry in entries {
+            var isEntryTitleMatch = false
+            var isEntryCategoryMatch = false
+            var matchingItemIds: [String] = []
+            
             // Search in entry title
             if entry.title.lowercased().contains(searchLower) {
-                return true
+                isEntryTitleMatch = true
             }
             
             // Search in entry category
             if entry.category.lowercased().contains(searchLower) {
-                return true
+                isEntryCategoryMatch = true
             }
             
             // Search in items associated with this entry
             let items = allItems.filter { $0.entryId == entry.id }
-            return items.contains { item in
-                item.itemDescription.lowercased().contains(searchLower)
+            for item in items {
+                if item.itemDescription.lowercased().contains(searchLower) {
+                    matchingItemIds.append(item.id)
+                }
+            }
+            
+            // If there's any match, include the entry
+            if isEntryTitleMatch || isEntryCategoryMatch || !matchingItemIds.isEmpty {
+                matchingEntries.append(entry)
+                searchMatches.append(SearchMatch(
+                    entryId: entry.id,
+                    isEntryTitleMatch: isEntryTitleMatch,
+                    isEntryCategoryMatch: isEntryCategoryMatch,
+                    matchingItemIds: matchingItemIds
+                ))
             }
         }
+        
+        return (matchingEntries, searchMatches)
     }
     
     // Main filtered entries function
@@ -102,14 +132,14 @@ struct FilteringLogic {
         showAllMonths: Bool,
         selectedCategory: String,
         searchText: String
-    ) -> [Entry] {
-        guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
+    ) -> (entries: [Entry], searchMatches: [SearchMatch]) {
+        guard let selectedHomeGroupId = selectedHomeGroupId else { return ([], []) }
         
         let dateFiltered = filterEntriesByDate(entries, homeGroupId: selectedHomeGroupId, selectedMonthYear: selectedMonthYear, showAllMonths: showAllMonths)
         let categoryFiltered = filterEntriesByCategory(dateFiltered, selectedCategory: selectedCategory)
-        let searchFiltered = filterEntriesBySearch(categoryFiltered, searchText: searchText, allItems: allItems)
+        let (searchFiltered, searchMatches) = filterEntriesBySearch(categoryFiltered, searchText: searchText, allItems: allItems)
         
-        return searchFiltered
+        return (searchFiltered, searchMatches)
     }
     
     // Group entries by date with stable section identifiers
@@ -122,10 +152,23 @@ struct FilteringLogic {
     }
     
     // Calculate total spent for filtered entries
-    static func calculateTotalSpent(_ entries: [Entry], allItems: [Item]) -> Double {
+    static func calculateTotalSpent(_ entries: [Entry], allItems: [Item], searchMatches: [SearchMatch] = []) -> Double {
         return entries.reduce(0.0) { total, entry in
             let items = allItems.filter { $0.entryId == entry.id }
-            let entryTotal = items.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
+            
+            // Check if this entry has search matches
+            let searchMatch = searchMatches.first { $0.entryId == entry.id }
+            
+            let entryTotal: Double
+            if let searchMatch = searchMatch, !searchMatch.matchingItemIds.isEmpty {
+                // If searching for items, only count matching items
+                let matchingItems = items.filter { searchMatch.matchingItemIds.contains($0.id) }
+                entryTotal = matchingItems.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
+            } else {
+                // Normal calculation - all items
+                entryTotal = items.filter { $0.payed == true }.reduce(0.0) { $0 + $1.money }
+            }
+            
             return total + (entry.type ? 0 : entryTotal) // Only count expenses, not income
         }
     }

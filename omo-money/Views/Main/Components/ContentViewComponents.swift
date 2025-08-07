@@ -120,6 +120,7 @@ struct HeaderControlsView: View {
 struct TotalSpentWidgetView: View {
     let currentHomeGroup: HomeGroup
     let totalSpent: Double
+    let searchText: String
     let onAddEntry: () -> Void
     
     var body: some View {
@@ -131,6 +132,18 @@ struct TotalSpentWidgetView: View {
                     Text("Total Gastado")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
+                    
+                    // Show search indicator if there's a search
+                    if !searchText.isEmpty {
+                        HStack(spacing: 4) {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                            Text("Filtrado")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
                 }
                 
                 Text("\(String(format: "%.2f", totalSpent))\(currencySymbol)")
@@ -207,6 +220,7 @@ struct WelcomeScreenView: View {
 // MARK: - Entries List Component
 struct EntriesListView: View {
     let entriesByDate: [(date: Date, entries: [Entry], sectionId: String)]
+    let searchMatches: [SearchMatch]
     let onEntryTapped: (Entry) -> Void
     let onEntryEdit: (Entry) -> Void
     let onEntryDelete: ([Entry]) -> Void
@@ -216,14 +230,20 @@ struct EntriesListView: View {
             ForEach(entriesByDate, id: \.sectionId) { (date, entriesForDate, sectionId) in
                 Section(header: Text("\(date.formatted(date: .abbreviated, time: .omitted)) • \(entriesForDate.count)")) {
                     ForEach(entriesForDate, id: \.id) { entry in
+                        let searchMatch = searchMatches.first { $0.entryId == entry.id }
+                        
                         ZStack {
                             Rectangle()
                                 .fill(Color.clear)
                                 .contentShape(Rectangle())
                             
-                            EntryRowView(entry: entry, onEdit: {
-                                onEntryEdit(entry)
-                            })
+                            EntryRowView(
+                                entry: entry, 
+                                onEdit: {
+                                    onEntryEdit(entry)
+                                },
+                                searchMatch: searchMatch
+                            )
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
                         }
