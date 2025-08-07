@@ -435,7 +435,7 @@ struct ContentView: View {
                     itemDescription: cleanedTitle,
                     entryId: newEntry.id,
                     position: nil,
-                    payed: false
+                    payed: true
                 )
                 modelContext.insert(initialItem)
             }
