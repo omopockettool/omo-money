@@ -405,6 +405,29 @@ struct ContentView: View {
                     selectedHomeGroupId = userHomeGroups.first?.id
                 }
             }
+            .onChange(of: selectedHomeGroupId) { _, newGroupId in
+                // Reset filters when changing groups for better UX
+                if newGroupId != nil {
+                    // Reset to current month and year
+                    let calendar = Calendar.current
+                    let currentDate = Date()
+                    selectedMonthYear = currentDate
+                    showAllMonths = false
+                    
+                    // Reset category filter
+                    selectedCategory = "Todas"
+                    
+                    // Clear search text
+                    searchText = ""
+                    
+                    // Reset temp values for filter sheet
+                    tempSelectedMonth = calendar.component(.month, from: currentDate) - 1
+                    tempSelectedYear = calendar.component(.year, from: currentDate)
+                    tempShowAllMonths = false
+                    tempSelectedCategory = "Todas"
+                    tempSearchText = ""
+                }
+            }
         }
     }
     
