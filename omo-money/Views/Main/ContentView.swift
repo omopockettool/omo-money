@@ -98,6 +98,23 @@ struct ContentView: View {
         return FilteringLogic.groupEntriesByDate(filteredEntries)
     }
     
+    // Get entries and items for the current home group only
+    var currentGroupEntries: [Entry] {
+        guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
+        return entries.filter { $0.homeGroupId == selectedHomeGroupId }
+    }
+    
+    var currentGroupItems: [Item] {
+        guard let selectedHomeGroupId = selectedHomeGroupId else { return [] }
+        return allItems.filter { item in
+            // Find the entry for this item and check if it belongs to the current group
+            if let entry = entries.first(where: { $0.id == item.entryId }) {
+                return entry.homeGroupId == selectedHomeGroupId
+            }
+            return false
+        }
+    }
+    
     // Calculate total spent
     var totalSpent: Double {
         return FilteringLogic.calculateTotalSpent(filteredEntries, allItems: allItems, searchMatches: searchMatches)
@@ -363,8 +380,8 @@ struct ContentView: View {
                     selectedCategory: $selectedCategory,
                     searchText: $searchText,
                     tempSearchText: $tempSearchText,
-                    entries: entries,
-                    items: allItems
+                    entries: currentGroupEntries,
+                    items: currentGroupItems
                 )
             }
             .background(
